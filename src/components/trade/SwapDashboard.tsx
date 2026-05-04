@@ -4,9 +4,98 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Navigation, MapPin, Handshake, BookOpen, Star, Clock } from "lucide-react";
+import { Navigation, MapPin, Handshake, BookOpen, Star, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
+
+type RatingDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  matchId: string;
+  myId: string;
+  otherName: string;
+  onAlbum: () => void;
+};
+
+function RatingDialog({ open, onClose, matchId, myId, otherName, onAlbum }: RatingDialogProps) {
+  const [score, setScore] = useState(5);
+  const [onTime, setOnTime] = useState(true);
+  const [hadStickers, setHadStickers] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    const otherRes = await supabase.from("matches").select("user_a,user_b").eq("id", matchId).single();
+    const otherId = otherRes.data?.user_a === myId ? otherRes.data?.user_b : otherRes.data?.user_a;
+    if (!otherId) { setBusy(false); return; }
+    await supabase.from("user_ratings").insert({
+      match_id: matchId, rater_id: myId, rated_id: otherId,
+      score, on_time: onTime, had_stickers: hadStickers,
+    });
+    setDone(true);
+    setBusy(false);
+  };
+
+  if (done) return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Thanks for rating!</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Your feedback helps build trust in the community.</p>
+        <div className="flex gap-2 mt-2">
+          <Button className="flex-1" onClick={() => { onClose(); onAlbum(); }}>
+            <BookOpen className="w-4 h-4 mr-1"/> Update my album
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>Later</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>How was the trade with {otherName}?</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 mt-1">
+          {/* Stars */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Overall</p>
+            <div className="flex gap-1">
+              {[1,2,3,4,5].map((n) => (
+                <button key={n} onClick={() => setScore(n)}>
+                  <Star className={`w-8 h-8 transition-colors ${n <= score ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}/>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick tags */}
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setOnTime(!onTime)}
+              className={`rounded-xl border p-3 text-sm text-left transition-all ${onTime ? "border-primary bg-primary/10" : "border-border"}`}>
+              <div className="flex items-center justify-between">
+                <span>⏰ On time</span>
+                {onTime && <Check className="w-4 h-4 text-primary"/>}
+              </div>
+            </button>
+            <button onClick={() => setHadStickers(!hadStickers)}
+              className={`rounded-xl border p-3 text-sm text-left transition-all ${hadStickers ? "border-primary bg-primary/10" : "border-border"}`}>
+              <div className="flex items-center justify-between">
+                <span>🃏 Had stickers</span>
+                {hadStickers && <Check className="w-4 h-4 text-primary"/>}
+              </div>
+            </button>
+          </div>
+
+          <Button className="w-full" onClick={submit} disabled={busy}>Submit Rating</Button>
+          <button className="w-full text-xs text-muted-foreground" onClick={onClose}>Skip</button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 type Session = {
   id: string; match_id: string;
@@ -24,14 +113,15 @@ type Props = {
   session: Session | null;
   meetup: MeetupSlot;
   matchId: string;
+  myId: string;
   isUserA: boolean;
   otherName: string;
 };
 
-export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: Props) {
+export function SwapDashboard({ session, meetup, matchId, myId, isUserA, otherName }: Props) {
   const qc = useQueryClient();
   const nav = useNavigate();
-  const [albumPrompt, setAlbumPrompt] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const myHeading   = isUserA ? !!session?.heading_a  : !!session?.heading_b;
@@ -69,19 +159,17 @@ export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: 
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
       if ((data as any)?.completed) {
-        toast.success("Swap done! +10 reputation each.");
-        setAlbumPrompt(true);
+        toast.success("Swap done! +10 trust score each.");
       } else {
         toast.success("Marked! Waiting for the other person.");
       }
     } catch {
-      // Fallback if RPC not deployed yet
       await supabase.from("swap_sessions")
         .update({ [isUserA ? "complete_a" : "complete_b"]: true } as any)
         .eq("match_id", matchId);
       qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
-      toast.success("Marked as complete!");
     }
+    setRatingOpen(true);
     setBusy(false);
   };
 
@@ -190,24 +278,14 @@ export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: 
         )}
       </div>
 
-      <Dialog open={albumPrompt} onOpenChange={setAlbumPrompt}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-amber-400 fill-amber-400"/> Nice trade!
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Did you pick up some new stickers? Head to your album to mark them as owned.
-          </p>
-          <div className="flex gap-2 mt-2">
-            <Button className="flex-1" onClick={() => { setAlbumPrompt(false); nav("/album"); }}>
-              <BookOpen className="w-4 h-4 mr-1"/> Update my album
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={() => setAlbumPrompt(false)}>Later</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <RatingDialog
+        open={ratingOpen}
+        onClose={() => setRatingOpen(false)}
+        matchId={matchId}
+        myId={myId}
+        otherName={otherName}
+        onAlbum={() => nav("/album")}
+      />
     </>
   );
 }
