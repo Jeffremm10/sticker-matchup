@@ -82,7 +82,7 @@ export default function Profile() {
           <div className="bg-secondary rounded-xl p-3 text-center">
             <ThumbsUp className="w-4 h-4 mx-auto mb-1 text-primary"/>
             <div className="text-xl font-black">{profile?.karma ?? 0}</div>
-            <div className="text-[10px] text-muted-foreground uppercase">Karma</div>
+            <div className="text-[10px] text-muted-foreground uppercase">Trust Score</div>
           </div>
         </div>
         {(profile?.rating_count ?? 0) > 0 && (
