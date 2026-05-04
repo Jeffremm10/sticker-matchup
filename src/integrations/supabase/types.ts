@@ -126,6 +126,7 @@ export type Database = {
           code: string
           id: number
           nation: string
+          seq: number | null
           slot_num: number
           slot_type: string
         }
@@ -133,6 +134,7 @@ export type Database = {
           code: string
           id: number
           nation: string
+          seq?: number | null
           slot_num: number
           slot_type: string
         }
@@ -140,6 +142,7 @@ export type Database = {
           code?: string
           id?: number
           nation?: string
+          seq?: number | null
           slot_num?: number
           slot_type?: string
         }
