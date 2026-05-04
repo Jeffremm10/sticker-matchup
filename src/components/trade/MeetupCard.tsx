@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MapPin, Clock, Check, Calendar, Loader2, Coffee, Train, ShoppingBag } from "lucide-react";
+import { MapPin, Clock, Check, Calendar, Loader2, Coffee, Train, ShoppingBag, X, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -258,9 +258,9 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
 }
 
 export function MeetupSlotCard({
-  slot, myId, matchId,
+  slot, myId, matchId, onSuggestAlternative,
 }: {
-  slot: MeetupSlot; myId: string; matchId: string;
+  slot: MeetupSlot; myId: string; matchId: string; onSuggestAlternative?: () => void;
 }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -278,6 +278,29 @@ export function MeetupSlotCard({
     setBusy(false);
   };
 
+  const reject = async () => {
+    setBusy(true);
+    const { error } = await supabase.from("meetup_slots")
+      .update({ status: "cancelled" }).eq("id", slot.id);
+    if (error) { toast.error(error.message); setBusy(false); return; }
+    await supabase.from("messages").insert({
+      match_id: matchId, sender_id: myId,
+      body: `❌ Declined meetup at ${slot.venue_name}`,
+      msg_type: "text",
+    });
+    qc.invalidateQueries({ queryKey: ["meetup_slot", matchId] });
+    toast("Meetup declined");
+    setBusy(false);
+  };
+
+  const suggestAlt = async () => {
+    setBusy(true);
+    await supabase.from("meetup_slots").update({ status: "cancelled" }).eq("id", slot.id);
+    qc.invalidateQueries({ queryKey: ["meetup_slot", matchId] });
+    setBusy(false);
+    onSuggestAlternative?.();
+  };
+
   return (
     <div className={`rounded-2xl border p-3 space-y-2 ${confirmed ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
       <div className="flex items-center gap-1.5 text-sm font-bold">
@@ -291,12 +314,27 @@ export function MeetupSlotCard({
         {format(new Date(slot.scheduled_at), "EEE d MMM · HH:mm")}
       </p>
       {!isMe && !confirmed && (
-        <Button size="sm" className="w-full" onClick={confirm} disabled={busy}>
-          <Check className="w-3.5 h-3.5 mr-1"/> Confirm this Meetup
-        </Button>
+        <div className="space-y-1.5">
+          <Button size="sm" className="w-full" onClick={confirm} disabled={busy}>
+            <Check className="w-3.5 h-3.5 mr-1"/> Confirm
+          </Button>
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" className="flex-1" onClick={suggestAlt} disabled={busy}>
+              <Repeat className="w-3.5 h-3.5 mr-1"/> Suggest other
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1 text-destructive" onClick={reject} disabled={busy}>
+              <X className="w-3.5 h-3.5 mr-1"/> Decline
+            </Button>
+          </div>
+        </div>
       )}
       {isMe && !confirmed && (
-        <p className="text-xs text-muted-foreground text-center">Waiting for them to confirm…</p>
+        <>
+          <p className="text-xs text-muted-foreground text-center">Waiting for them to confirm…</p>
+          <Button size="sm" variant="ghost" className="w-full text-xs text-muted-foreground" onClick={reject} disabled={busy}>
+            Cancel proposal
+          </Button>
+        </>
       )}
     </div>
   );

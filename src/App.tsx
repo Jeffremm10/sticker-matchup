@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Swipe from "./pages/Swipe";
 import Meet from "./pages/Meet";
 import NotFound from "./pages/NotFound";
+import { MessageNotifications } from "./hooks/useMessageNotifications";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <MessageNotifications />
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding/username" element={<Protected requireUsername={false}><OnboardingUsername /></Protected>} />

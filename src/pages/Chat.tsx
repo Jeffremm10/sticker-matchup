@@ -197,7 +197,12 @@ export default function Chat() {
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {/* meetup card — pinned above chat */}
         {meetupSlot && (
-          <MeetupSlotCard slot={meetupSlot} myId={user!.id} matchId={matchId!} />
+          <MeetupSlotCard
+            slot={meetupSlot}
+            myId={user!.id}
+            matchId={matchId!}
+            onSuggestAlternative={() => setMeetupOpen(true)}
+          />
         )}
 
         {/* live swap dashboard — once meetup confirmed */}
