@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { LogOut, MapPin, Trophy } from "lucide-react";
+import { LogOut, MapPin, Trophy, Star, Handshake, ThumbsUp } from "lucide-react";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -65,6 +65,32 @@ export default function Profile() {
         </Button>
       </header>
       <div className="p-4 space-y-4">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-secondary rounded-xl p-3 text-center">
+            <Handshake className="w-4 h-4 mx-auto mb-1 text-primary"/>
+            <div className="text-xl font-black">{profile?.swap_count ?? 0}</div>
+            <div className="text-[10px] text-muted-foreground uppercase">Swaps</div>
+          </div>
+          <div className="bg-secondary rounded-xl p-3 text-center">
+            <Star className="w-4 h-4 mx-auto mb-1 text-amber-400"/>
+            <div className="text-xl font-black">
+              {(profile?.rating_count ?? 0) > 0 ? Number(profile?.avg_rating).toFixed(1) : "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground uppercase">Rating</div>
+          </div>
+          <div className="bg-secondary rounded-xl p-3 text-center">
+            <ThumbsUp className="w-4 h-4 mx-auto mb-1 text-primary"/>
+            <div className="text-xl font-black">{profile?.karma ?? 0}</div>
+            <div className="text-[10px] text-muted-foreground uppercase">Karma</div>
+          </div>
+        </div>
+        {(profile?.rating_count ?? 0) > 0 && (
+          <p className="text-xs text-center text-muted-foreground">
+            Based on {profile?.rating_count} rating{profile?.rating_count !== 1 ? "s" : ""}
+          </p>
+        )}
+
         <div><Label>Display name</Label><Input value={name} onChange={e=>setName(e.target.value)}/></div>
         <div><Label>Bio</Label><Textarea value={bio} onChange={e=>setBio(e.target.value)} rows={2}/></div>
         <div className="grid grid-cols-2 gap-2">
