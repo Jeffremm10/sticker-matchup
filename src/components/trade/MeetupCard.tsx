@@ -31,59 +31,73 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-const FALLBACK_TEMPLATES: Venue[] = [
-  { name: "Starbucks", type: "coffee_shop", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
-  { name: "Costa Coffee", type: "coffee_shop", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
-  { name: "McDonald's", type: "coffee_shop", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
-  { name: "Shopping Mall Food Court", type: "mall", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
-  { name: "Main Train Station", type: "transit_hub", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
-];
+async function overpassGET(lat: number, lng: number, radiusM = 2000): Promise<Venue[]> {
+  // GET avoids CORS preflight; node-only means direct lat/lng (no out center needed)
+  const q = `[out:json][timeout:12];(node["amenity"~"cafe|fast_food|restaurant"]["name"](around:${radiusM},${lat},${lng});node["railway"="station"]["name"](around:${radiusM},${lat},${lng});node["shop"="mall"]["name"](around:${radiusM},${lat},${lng}););out 20;`;
+  const encoded = encodeURIComponent(q);
 
-async function fetchViaEdgeFunction(lat: number, lng: number, lat2?: number | null, lng2?: number | null): Promise<Venue[]> {
-  const { data, error } = await supabase.functions.invoke("find-venues", {
-    body: { lat, lng, lat2: lat2 ?? null, lng2: lng2 ?? null },
-  });
-  if (error || !data?.venues?.length) throw new Error("no results");
-  return data.venues as Venue[];
-}
-
-async function fetchViaNominatim(lat: number, lng: number): Promise<Venue[]> {
-  const d = 0.08;
-  const box = `${lng - d},${lat + d},${lng + d},${lat - d}`;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&bounded=1&viewbox=${box}&amenity=cafe`;
-  const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "StickerSwap/1.0" } });
-  if (!res.ok) throw new Error("nominatim error");
-  const items: any[] = await res.json();
-  return items
-    .filter((i) => i.name)
-    .map((i) => ({
-      name: i.name,
-      lat: parseFloat(i.lat),
-      lng: parseFloat(i.lon),
-      type: "coffee_shop" as const,
-      address: i.address?.road ?? null,
-      label: "Near midpoint",
-    }));
+  for (const base of [
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+  ]) {
+    try {
+      const res = await fetch(`${base}?data=${encoded}`);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const results: Venue[] = json.elements
+        .filter((el: any) => el.tags?.name && el.lat && el.lon)
+        .map((el: any) => ({
+          name: el.tags.name as string,
+          lat: el.lat as number,
+          lng: el.lon as number,
+          type: (el.tags.railway ? "transit_hub" : el.tags.shop ? "mall" : "coffee_shop") as Venue["type"],
+          address: [el.tags["addr:street"], el.tags["addr:housenumber"]].filter(Boolean).join(" ") || null,
+          label: "Nearby",
+        }))
+        .slice(0, 6);
+      if (results.length) return results;
+    } catch { /* try next mirror */ }
+  }
+  return [];
 }
 
 async function fetchSuggestionsNear(
   lat: number, lng: number,
   lat2?: number | null, lng2?: number | null,
 ): Promise<Venue[]> {
-  // Tier 1: edge function (server-side Overpass)
-  try {
-    const venues = await fetchViaEdgeFunction(lat, lng, lat2, lng2);
-    if (venues.length) return venues;
-  } catch {}
+  const userDistKm = lat2 && lng2 ? haversineKm([lat, lng], [lat2, lng2]) : 0;
 
-  // Tier 2: Nominatim directly from browser
-  try {
-    const venues = await fetchViaNominatim(lat, lng);
+  if (userDistKm > 80) {
+    // Far apart — search near each user, show best from both
+    const [nearMe, nearThem] = await Promise.all([
+      overpassGET(lat, lng, 2000),
+      lat2 && lng2 ? overpassGET(lat2, lng2, 2000) : Promise.resolve([]),
+    ]);
+    const all = [
+      ...nearMe.slice(0, 3).map((v) => ({ ...v, label: "Near you" })),
+      ...nearThem.slice(0, 3).map((v) => ({ ...v, label: "Near them" })),
+    ];
+    if (all.length) return all;
+  } else {
+    // Close — search around midpoint
+    const midLat = lat2 ? (lat + lat2) / 2 : lat;
+    const midLng = lng2 ? (lng + lng2) / 2 : lng;
+    const radius = Math.max(2000, userDistKm * 400);
+    const venues = await overpassGET(midLat, midLng, radius);
     if (venues.length) return venues;
-  } catch {}
+    // Midpoint too rural — fall back to near each user
+    const [nearMe, nearThem] = await Promise.all([
+      overpassGET(lat, lng, 2000),
+      lat2 && lng2 ? overpassGET(lat2, lng2, 2000) : Promise.resolve([]),
+    ]);
+    const all = [
+      ...nearMe.slice(0, 3).map((v) => ({ ...v, label: "Near you" })),
+      ...nearThem.slice(0, 3).map((v) => ({ ...v, label: "Near them" })),
+    ];
+    if (all.length) return all;
+  }
 
-  // Tier 3: hardcoded templates — always something to show
-  return FALLBACK_TEMPLATES;
+  throw new Error("No venues found nearby — type your spot below.");
 }
 
 type SelectorProps = {
@@ -119,7 +133,7 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
     setLiveSuggestions([]);
     fetchSuggestionsNear(midpoint[0], midpoint[1], otherProfile?.lat, otherProfile?.lng)
       .then(setLiveSuggestions)
-      .catch(() => toast.error("Couldn't load nearby spots — type a custom location below."))
+      .catch((e: Error) => toast.info(e.message ?? "Type your meeting spot below."))
       .finally(() => setLoadingSuggestions(false));
   }, [open, midpoint?.[0], midpoint?.[1]]); // eslint-disable-line
 
