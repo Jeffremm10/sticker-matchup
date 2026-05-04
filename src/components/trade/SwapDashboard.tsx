@@ -145,9 +145,15 @@ export function SwapDashboard({ session, meetup, matchId, myId, isUserA, otherNa
   const canArrive = minsUntil <= 30;   // unlock 30 min before
 
   const setFlag = async (field: string) => {
-    if (!session) return;
     setBusy(true);
-    await supabase.from("swap_sessions").update({ [field]: true } as any).eq("match_id", matchId);
+    if (!session) {
+      // Session not yet created — insert with the flag already set
+      await supabase.from("swap_sessions")
+        .insert({ match_id: matchId, pin: "", [field]: true });
+    } else {
+      await supabase.from("swap_sessions")
+        .update({ [field]: true } as any).eq("match_id", matchId);
+    }
     qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
     setBusy(false);
   };
