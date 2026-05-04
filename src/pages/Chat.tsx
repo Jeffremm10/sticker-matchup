@@ -144,12 +144,6 @@ export default function Chat() {
     return () => { supabase.removeChannel(ch); };
   }, [matchId, qc]);
 
-  // ── nearby venues ─────────────────────────────────────────────────────
-  const { data: nearbyVenues = [] } = useQuery({
-    queryKey: ["venues"],
-    queryFn: async () => (await supabase.from("venues").select("*")).data ?? [],
-  });
-
   // ── actions ───────────────────────────────────────────────────────────
   const send = async () => {
     if (!text.trim() || !user || !matchId) return;
@@ -262,7 +256,7 @@ export default function Chat() {
         myId={user!.id}
         myProfile={myProfile}
         otherProfile={otherProfile}
-        nearbyVenues={nearbyVenues}
+        nearbyVenues={[]}
       />
     </div>
   );

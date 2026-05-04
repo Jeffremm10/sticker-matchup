@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MapPin, Clock, Check, Calendar } from "lucide-react";
+import { MapPin, Clock, Check, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-type Venue = { id: string; name: string; type: string; lat: number; lng: number; address: string | null };
+type Venue = { id?: string; name: string; type: string; lat: number; lng: number; address: string | null };
 
 export type MeetupSlot = {
   id: string; match_id: string; venue_name: string; venue_address: string | null;
@@ -23,6 +23,43 @@ function haversineKm(a: [number, number], b: [number, number]) {
   const dLat = toRad(b[0] - a[0]), dLng = toRad(b[1] - a[1]);
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+async function fetchSuggestionsNear(lat: number, lng: number): Promise<Venue[]> {
+  // Single Overpass query: cafes, malls, train stations within 3km
+  const query = `
+    [out:json][timeout:15];
+    (
+      node["amenity"~"cafe|fast_food"]["name"](around:3000,${lat},${lng});
+      node["shop"~"mall|department_store"]["name"](around:3000,${lat},${lng});
+      node["public_transport"~"station|stop_area"]["name"](around:3000,${lat},${lng});
+      node["railway"="station"]["name"](around:3000,${lat},${lng});
+    );
+    out 30;
+  `;
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: "data=" + encodeURIComponent(query),
+    signal: AbortSignal.timeout(15000),
+  });
+  const json = await res.json();
+  const elements: any[] = json.elements ?? [];
+
+  // Score each result: named chains score higher, closer = better
+  const results = elements
+    .filter((el) => el.tags?.name)
+    .map((el) => {
+      const name: string = el.tags.name;
+      const elLat = el.lat, elLng = el.lon;
+      const dist = haversineKm([lat, lng], [elLat, elLng]);
+      const type = el.tags.amenity ? (el.tags.shop ? "mall" : "coffee_shop") : "transit_hub";
+      const address = [el.tags["addr:street"], el.tags["addr:housenumber"]].filter(Boolean).join(" ") || null;
+      return { name, lat: elLat, lng: elLng, type, address, dist };
+    })
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 5);
+
+  return results;
 }
 
 type SelectorProps = {
@@ -41,13 +78,31 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [customName, setCustomName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [liveSuggestions, setLiveSuggestions] = useState<Venue[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const midpoint: [number, number] | null =
     myProfile?.lat && myProfile?.lng && otherProfile?.lat && otherProfile?.lng
       ? [(myProfile.lat + otherProfile.lat) / 2, (myProfile.lng + otherProfile.lng) / 2]
+      : myProfile?.lat && myProfile?.lng
+      ? [myProfile.lat, myProfile.lng]
       : null;
 
-  const suggestions = midpoint
+  // Fetch from Overpass when sheet opens
+  useEffect(() => {
+    if (!open || !midpoint) return;
+    setLoadingSuggestions(true);
+    setLiveSuggestions([]);
+    fetchSuggestionsNear(midpoint[0], midpoint[1])
+      .then(setLiveSuggestions)
+      .catch(() => {/* Overpass timeout — fall back to DB venues silently */})
+      .finally(() => setLoadingSuggestions(false));
+  }, [open]); // eslint-disable-line
+
+  // Merge: live Overpass results first, then DB cache as fallback
+  const suggestions = liveSuggestions.length > 0
+    ? liveSuggestions
+    : midpoint
     ? [...nearbyVenues]
         .sort((a, b) => haversineKm(midpoint, [a.lat, a.lng]) - haversineKm(midpoint, [b.lat, b.lng]))
         .slice(0, 3)
@@ -86,11 +141,22 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
         </SheetHeader>
 
         <div className="mt-4 space-y-3">
-          {suggestions.map((v) => {
+          {loadingSuggestions && (
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin"/> Finding spots near you…
+            </div>
+          )}
+          {!loadingSuggestions && suggestions.length === 0 && !midpoint && (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              Enable location in your profile to get spot suggestions.
+            </p>
+          )}
+          {!loadingSuggestions && suggestions.map((v) => {
             const dist = midpoint ? Math.round(haversineKm(midpoint, [v.lat, v.lng]) * 10) / 10 : null;
-            const sel = selectedVenue?.id === v.id;
+            const key = `${v.lat},${v.lng}`;
+            const sel = selectedVenue ? `${selectedVenue.lat},${selectedVenue.lng}` === key : false;
             return (
-              <button key={v.id} onClick={() => setSelectedVenue(sel ? null : v)}
+              <button key={key} onClick={() => setSelectedVenue(sel ? null : v)}
                 className={`w-full text-left rounded-xl border p-3 transition-all ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
