@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { lovable } from "@/integrations/lovable";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
+
+const TEST_USERS = [
+  { email: "alex@swap26.test",   label: "Alex (Toronto)" },
+  { email: "maya@swap26.test",   label: "Maya (CDMX)" },
+  { email: "jordan@swap26.test", label: "Jordan (NYC)" },
+  { email: "sam@swap26.test",    label: "Sam (London)" },
+  { email: "ines@swap26.test",   label: "Ines (Madrid)" },
+  { email: "kenji@swap26.test",  label: "Kenji (Tokyo)" },
+];
+const TEST_PASSWORD = "Test1234!";
 
 export default function Auth() {
   const { user, loading } = useAuth();
@@ -30,6 +41,31 @@ export default function Auth() {
     }
   };
 
+  const seed = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.functions.invoke("seed-test-users");
+      if (error) throw error;
+      toast.success("Test users created. Pick one below to log in.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Seeding failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loginAs = async (email: string) => {
+    setBusy(true);
+    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signInWithPassword({ email, password: TEST_PASSWORD });
+    if (error) {
+      toast.error("Test user not found. Click 'Create test users' first.");
+      setBusy(false);
+      return;
+    }
+    nav("/", { replace: true });
+  };
+
   if (!loading && user) return <Navigate to="/" replace />;
 
   return (
@@ -48,6 +84,25 @@ export default function Auth() {
         <p className="text-[11px] text-muted-foreground mt-4">
           A collection manager with social discovery.
         </p>
+
+        <div className="mt-6 pt-4 border-t border-border text-left">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Dev: Test the swiping
+          </p>
+          <Button variant="outline" size="sm" className="w-full mb-2" onClick={seed} disabled={busy}>
+            Create / refresh test users
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            {TEST_USERS.map((t) => (
+              <Button key={t.email} variant="secondary" size="sm" onClick={() => loginAs(t.email)} disabled={busy}>
+                {t.label}
+              </Button>
+            ))}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Open multiple browsers/incognito windows and log in as different test users to swipe and match between them.
+          </p>
+        </div>
       </Card>
     </div>
   );
