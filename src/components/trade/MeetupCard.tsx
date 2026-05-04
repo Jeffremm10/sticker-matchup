@@ -33,34 +33,39 @@ function haversineKm(a: [number, number], b: [number, number]) {
 
 async function searchPlacesByName(query: string, lat: number, lng: number): Promise<Venue[]> {
   if (query.length < 2) return [];
-  const params = new URLSearchParams({
-    q: query,
-    format: "json",
-    limit: "6",
-    addressdetails: "1",
-    "accept-language": "en",
-  });
-  // Restrict results to a ~50km box around the user's location
-  const d = 0.5;
-  params.set("viewbox", `${lng - d},${lat + d},${lng + d},${lat - d}`);
-  params.set("bounded", "1");
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-    headers: { "User-Agent": "StickerSwap/1.0 (contact@swap26.app)" },
-  });
-  if (!res.ok) throw new Error(`${res.status}`);
-  const items: any[] = await res.json();
-  return items
-    .filter((i) => i.display_name)
-    .map((i) => ({
-      name: i.name || i.display_name.split(",")[0],
-      lat: parseFloat(i.lat),
-      lng: parseFloat(i.lon),
-      type: (i.type === "station" || i.class === "railway" ? "transit_hub"
-           : i.type === "mall" || i.class === "shop" ? "mall"
-           : "coffee_shop") as Venue["type"],
-      address: [i.address?.road, i.address?.city || i.address?.town].filter(Boolean).join(", ") || i.display_name.split(",").slice(1, 3).join(",").trim() || null,
-      label: undefined,
-    }));
+
+  // Strip special chars so "McDonald's" → "McDonald" still matches OSM names
+  const safe = query.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+  if (!safe) return [];
+
+  // Overpass name-regex search within 5km — best for finding chains by name
+  const q = `[out:json][timeout:10];(node["name"~"${safe}",i](around:5000,${lat},${lng});way["name"~"${safe}",i](around:5000,${lat},${lng}););out center 10;`;
+
+  for (const base of [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ]) {
+    try {
+      const res = await fetch(`${base}?data=${encodeURIComponent(q)}`);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const results: Venue[] = json.elements
+        .map((el: any) => {
+          const elLat: number = el.lat ?? el.center?.lat;
+          const elLng: number = el.lon ?? el.center?.lon;
+          if (!elLat || !elLng || !el.tags?.name) return null;
+          const type: Venue["type"] =
+            el.tags.railway ? "transit_hub" :
+            el.tags.shop ? "mall" : "coffee_shop";
+          const address = [el.tags["addr:street"], el.tags["addr:housenumber"]]
+            .filter(Boolean).join(" ") || null;
+          return { name: el.tags.name as string, lat: elLat, lng: elLng, type, address };
+        })
+        .filter(Boolean) as Venue[];
+      if (results.length) return results.slice(0, 6);
+    } catch { continue; }
+  }
+  return [];
 }
 
 type SelectorProps = {
