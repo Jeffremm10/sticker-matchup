@@ -42,6 +42,14 @@ function toVenues(elements: any[], originLat: number, originLng: number, label?:
     .sort((a:any,b:any) => a.dist - b.dist);
 }
 
+function normalizeQuery(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -57,21 +65,33 @@ Deno.serve(async (req) => {
   if (body.query) {
     const safe = String(body.query).replace(/[^a-zA-Z0-9 ]/g, "").trim();
     if (!safe) return new Response(JSON.stringify({ venues: [] }), { headers: { ...cors, "Content-Type": "application/json" } });
+    const normalized = normalizeQuery(safe);
+    const tokenPattern = safe
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(escapeRegex)
+      .join(".*");
 
     // Search a wider radius (25km) across named POIs that are likely meetup spots.
     const q = `[out:json][timeout:20];(
-      nwr["name"~"${safe}",i]["amenity"](around:25000,${lat},${lng});
-      nwr["name"~"${safe}",i]["shop"](around:25000,${lat},${lng});
-      nwr["name"~"${safe}",i]["railway"="station"](around:25000,${lat},${lng});
-      nwr["name"~"${safe}",i]["public_transport"](around:25000,${lat},${lng});
-      nwr["name"~"${safe}",i]["tourism"](around:25000,${lat},${lng});
+      nwr["name"~"${tokenPattern || escapeRegex(safe)}",i]["amenity"](around:25000,${lat},${lng});
+      nwr["name"~"${tokenPattern || escapeRegex(safe)}",i]["shop"](around:25000,${lat},${lng});
+      nwr["name"~"${tokenPattern || escapeRegex(safe)}",i]["railway"="station"](around:25000,${lat},${lng});
+      nwr["name"~"${tokenPattern || escapeRegex(safe)}",i]["public_transport"](around:25000,${lat},${lng});
+      nwr["name"~"${tokenPattern || escapeRegex(safe)}",i]["tourism"](around:25000,${lat},${lng});
     );out center 25;`;
     let elements = await overpass(q);
     // Fallback: any named entity within 10km if the typed search came up empty.
     if (elements.length === 0) {
-      elements = await overpass(`[out:json][timeout:20];(nwr["name"~"${safe}",i](around:10000,${lat},${lng}););out center 25;`);
+      elements = await overpass(`[out:json][timeout:20];(nwr["name"~"${tokenPattern || escapeRegex(safe)}",i](around:10000,${lat},${lng}););out center 25;`);
     }
-    const venues = toVenues(elements, lat, lng).slice(0, 8);
+    const venues = toVenues(elements, lat, lng)
+      .filter((venue: any) => {
+        if (!normalized) return true;
+        const candidate = normalizeQuery(venue.name);
+        return candidate.includes(normalized) || normalized.includes(candidate) || candidate.startsWith(normalized.slice(0, Math.max(2, Math.min(5, normalized.length))));
+      })
+      .slice(0, 8);
     return new Response(JSON.stringify({ venues }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
