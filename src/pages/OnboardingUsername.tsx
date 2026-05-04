@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +16,7 @@ const schema = z.string().trim().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, "letter
 export default function OnboardingUsername() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const qc = useQueryClient();
   const [name, setName] = useState("");
   const [status, setStatus] = useState<"idle" | "checking" | "ok" | "taken" | "invalid">("idle");
   const [busy, setBusy] = useState(false);
@@ -36,11 +38,14 @@ export default function OnboardingUsername() {
     if (status !== "ok" || !user) return;
     setBusy(true);
     const { error } = await supabase.from("profiles").update({ username: name, display_name: name }).eq("id", user.id);
-    setBusy(false);
     if (error) {
+      setBusy(false);
       if (error.code === "23505") return toast.error("Username already taken");
       return toast.error(error.message);
     }
+    await qc.invalidateQueries({ queryKey: ["profile", user.id] });
+    await qc.refetchQueries({ queryKey: ["profile", user.id] });
+    setBusy(false);
     nav("/album", { replace: true });
   };
 
