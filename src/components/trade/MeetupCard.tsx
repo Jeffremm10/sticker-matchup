@@ -82,8 +82,21 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const searchLat = myProfile?.lat ?? 47.3769; // fallback: Zürich
-  const searchLng = myProfile?.lng ?? 8.5472;
+  const [geoLat, setGeoLat] = useState<number | null>(null);
+  const [geoLng, setGeoLng] = useState<number | null>(null);
+
+  // Get real device location when sheet opens
+  useEffect(() => {
+    if (!open) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setGeoLat(pos.coords.latitude); setGeoLng(pos.coords.longitude); },
+      () => { /* denied — fall back to profile */ }
+    );
+  }, [open]);
+
+  // Best available location: GPS > profile > hardcoded Zürich
+  const searchLat = geoLat ?? myProfile?.lat ?? 47.3769;
+  const searchLng = geoLng ?? myProfile?.lng ?? 8.5472;
 
   // Debounced search
   useEffect(() => {
@@ -97,7 +110,7 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
         .finally(() => setSearching(false));
     }, 400);
     return () => clearTimeout(t);
-  }, [searchQuery, open]); // eslint-disable-line
+  }, [searchQuery, open, searchLat, searchLng]); // eslint-disable-line
 
   // Reset on close
   useEffect(() => {
