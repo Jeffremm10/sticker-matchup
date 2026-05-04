@@ -31,15 +31,59 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
+const FALLBACK_TEMPLATES: Venue[] = [
+  { name: "Starbucks", type: "coffee_shop", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
+  { name: "Costa Coffee", type: "coffee_shop", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
+  { name: "McDonald's", type: "coffee_shop", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
+  { name: "Shopping Mall Food Court", type: "mall", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
+  { name: "Main Train Station", type: "transit_hub", lat: 0, lng: 0, address: "Search nearby", label: "Suggestion" },
+];
+
+async function fetchViaEdgeFunction(lat: number, lng: number, lat2?: number | null, lng2?: number | null): Promise<Venue[]> {
+  const { data, error } = await supabase.functions.invoke("find-venues", {
+    body: { lat, lng, lat2: lat2 ?? null, lng2: lng2 ?? null },
+  });
+  if (error || !data?.venues?.length) throw new Error("no results");
+  return data.venues as Venue[];
+}
+
+async function fetchViaNominatim(lat: number, lng: number): Promise<Venue[]> {
+  const d = 0.08;
+  const box = `${lng - d},${lat + d},${lng + d},${lat - d}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&bounded=1&viewbox=${box}&amenity=cafe`;
+  const res = await fetch(url, { headers: { "Accept-Language": "en", "User-Agent": "StickerSwap/1.0" } });
+  if (!res.ok) throw new Error("nominatim error");
+  const items: any[] = await res.json();
+  return items
+    .filter((i) => i.name)
+    .map((i) => ({
+      name: i.name,
+      lat: parseFloat(i.lat),
+      lng: parseFloat(i.lon),
+      type: "coffee_shop" as const,
+      address: i.address?.road ?? null,
+      label: "Near midpoint",
+    }));
+}
+
 async function fetchSuggestionsNear(
   lat: number, lng: number,
   lat2?: number | null, lng2?: number | null,
 ): Promise<Venue[]> {
-  const { data, error } = await supabase.functions.invoke("find-venues", {
-    body: { lat, lng, lat2: lat2 ?? null, lng2: lng2 ?? null },
-  });
-  if (error) throw error;
-  return (data?.venues ?? []) as Venue[];
+  // Tier 1: edge function (server-side Overpass)
+  try {
+    const venues = await fetchViaEdgeFunction(lat, lng, lat2, lng2);
+    if (venues.length) return venues;
+  } catch {}
+
+  // Tier 2: Nominatim directly from browser
+  try {
+    const venues = await fetchViaNominatim(lat, lng);
+    if (venues.length) return venues;
+  } catch {}
+
+  // Tier 3: hardcoded templates — always something to show
+  return FALLBACK_TEMPLATES;
 }
 
 type SelectorProps = {
@@ -89,14 +133,15 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
     : nearbyVenues.slice(0, 3);
 
   const submit = async () => {
-    if ((!selectedVenue && !customName.trim()) || !time) return;
+    if (!customName.trim() || !time) return;
     setBusy(true);
+    const isTemplate = selectedVenue && !selectedVenue.lat;
     const { error } = await supabase.from("meetup_slots").insert({
       match_id: matchId,
-      venue_name: selectedVenue?.name ?? customName.trim(),
-      venue_address: selectedVenue?.address ?? null,
-      venue_lat: selectedVenue?.lat ?? null,
-      venue_lng: selectedVenue?.lng ?? null,
+      venue_name: customName.trim(),
+      venue_address: isTemplate ? null : (selectedVenue?.address ?? null),
+      venue_lat: isTemplate ? null : (selectedVenue?.lat ?? null),
+      venue_lng: isTemplate ? null : (selectedVenue?.lng ?? null),
       scheduled_at: new Date(time).toISOString(),
       suggested_by: myId,
       status: "pending",
@@ -121,48 +166,62 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
         </SheetHeader>
 
         <div className="mt-4 space-y-3">
+          {/* Custom input — always visible so it works even if API fails */}
+          <div>
+            <Label className="text-xs font-bold">Where do you want to meet?</Label>
+            <Input
+              placeholder="e.g. Starbucks on Bahnhofstrasse, Zürich"
+              value={customName}
+              onChange={(e) => { setCustomName(e.target.value); setSelectedVenue(null); }}
+              className="mt-1"
+              autoFocus
+            />
+          </div>
+
+          {/* Suggestions */}
           {loadingSuggestions && (
-            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin"/> Finding spots near you…
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin"/> Finding spots nearby…
             </div>
           )}
-          {!loadingSuggestions && suggestions.length === 0 && !midpoint && (
-            <p className="text-xs text-muted-foreground text-center py-2">
-              Enable location in your profile to get spot suggestions.
-            </p>
-          )}
-          {!loadingSuggestions && suggestions.map((v) => {
-            const dist = midpoint ? Math.round(haversineKm(midpoint, [v.lat, v.lng]) * 10) / 10 : null;
-            const key = `${v.lat},${v.lng}`;
-            const sel = selectedVenue ? `${selectedVenue.lat},${selectedVenue.lng}` === key : false;
-            return (
-              <button key={key} onClick={() => setSelectedVenue(sel ? null : v)}
-                className={`w-full text-left rounded-xl border p-3 transition-all ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {(() => { const I = TYPE_ICON[v.type] ?? MapPin; return <I className="w-4 h-4 text-primary shrink-0"/>; })()}
-                    <div>
-                      <div className="font-bold text-sm">{v.name}</div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {v.address && <span className="text-[11px] text-muted-foreground">{v.address}</span>}
-                        {v.label && <span className="text-[10px] bg-secondary rounded px-1 font-medium">{v.label}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {dist !== null && <span className="text-xs text-muted-foreground">{dist} km</span>}
-                    {sel && <Check className="w-4 h-4 text-primary"/>}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
 
-          {!selectedVenue && (
+          {!loadingSuggestions && suggestions.length > 0 && (
             <div>
-              <Label className="text-xs">Or type a custom spot</Label>
-              <Input placeholder="e.g. Central Station main entrance"
-                value={customName} onChange={(e) => setCustomName(e.target.value)} className="mt-1"/>
+              <p className="text-xs text-muted-foreground mb-1.5">
+                {suggestions[0]?.lat ? "Suggestions near you" : "Common meeting spots"}
+              </p>
+              <div className="space-y-1.5">
+                {suggestions.map((v) => {
+                  const isTemplate = !v.lat;
+                  const dist = !isTemplate && midpoint ? Math.round(haversineKm(midpoint, [v.lat, v.lng]) * 10) / 10 : null;
+                  const key = `${v.name}-${v.lat}-${v.lng}`;
+                  const sel = selectedVenue ? `${selectedVenue.name}-${selectedVenue.lat}-${selectedVenue.lng}` === key : false;
+                  const Icon = TYPE_ICON[v.type] ?? MapPin;
+                  return (
+                    <button key={key}
+                      onClick={() => {
+                        if (sel) { setSelectedVenue(null); setCustomName(""); }
+                        else { setSelectedVenue(v); setCustomName(v.name); }
+                      }}
+                      className={`w-full text-left rounded-xl border px-3 py-2 transition-all flex items-center justify-between ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-primary shrink-0"/>
+                        <div>
+                          <div className="font-bold text-sm">{v.name}</div>
+                          {v.address && !isTemplate && (
+                            <div className="text-[11px] text-muted-foreground">{v.address}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {dist !== null && <span className="text-xs text-muted-foreground">{dist} km</span>}
+                        {v.label && <span className="text-[10px] bg-secondary rounded px-1">{v.label}</span>}
+                        {sel && <Check className="w-4 h-4 text-primary"/>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
