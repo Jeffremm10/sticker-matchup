@@ -9,17 +9,54 @@ async function overpass(q: string) {
     "https://overpass.kumi.systems/api/interpreter",
   ]) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4500);
       const res = await fetch(base, {
         method: "POST",
         body: "data=" + encodeURIComponent(q),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) continue;
       const json = await res.json();
       return (json.elements ?? []) as any[];
     } catch { continue; }
   }
   return [];
+}
+
+async function photonSearch(query: string, lat: number, lng: number) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lng));
+    url.searchParams.set("limit", "8");
+
+    const res = await fetch(url, { signal: controller.signal, headers: { accept: "application/json" } });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    const json = await res.json();
+    return (json.features ?? []).map((feature: any) => {
+      const [featureLng, featureLat] = feature.geometry?.coordinates ?? [];
+      const props = feature.properties ?? {};
+      const type = props.osm_value === "station" || props.railway ? "transit_hub" : props.osm_key === "shop" ? "mall" : "coffee_shop";
+      const address = [props.street, props.housenumber, props.city].filter(Boolean).join(", ") || null;
+      return {
+        name: props.name ?? props.street ?? query,
+        lat: featureLat,
+        lng: featureLng,
+        type,
+        address,
+      };
+    }).filter((venue: any) => venue.lat && venue.lng && venue.name);
+  } catch {
+    return [];
+  }
 }
 
 function toVenues(elements: any[], originLat: number, originLng: number, label?: string) {
@@ -48,6 +85,16 @@ function normalizeQuery(value: string) {
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function dedupeVenues(items: any[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${normalizeQuery(item.name)}:${Number(item.lat).toFixed(4)}:${Number(item.lng).toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 Deno.serve(async (req) => {
@@ -85,13 +132,16 @@ Deno.serve(async (req) => {
     if (elements.length === 0) {
       elements = await overpass(`[out:json][timeout:20];(nwr["name"~"${tokenPattern || escapeRegex(safe)}",i](around:10000,${lat},${lng}););out center 25;`);
     }
-    const venues = toVenues(elements, lat, lng)
+    let venues = toVenues(elements, lat, lng)
       .filter((venue: any) => {
         if (!normalized) return true;
         const candidate = normalizeQuery(venue.name);
         return candidate.includes(normalized) || normalized.includes(candidate) || candidate.startsWith(normalized.slice(0, Math.max(2, Math.min(5, normalized.length))));
       })
       .slice(0, 8);
+    if (venues.length === 0) {
+      venues = dedupeVenues(await photonSearch(safe, lat, lng)).slice(0, 8);
+    }
     return new Response(JSON.stringify({ venues }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
