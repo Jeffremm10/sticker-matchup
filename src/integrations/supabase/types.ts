@@ -396,6 +396,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          had_stickers: boolean
+          id: string
+          match_id: string
+          on_time: boolean
+          rated_id: string
+          rater_id: string
+          score: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          had_stickers?: boolean
+          id?: string
+          match_id: string
+          on_time?: boolean
+          rated_id: string
+          rater_id: string
+          score: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          had_stickers?: boolean
+          id?: string
+          match_id?: string
+          on_time?: boolean
+          rated_id?: string
+          rater_id?: string
+          score?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
