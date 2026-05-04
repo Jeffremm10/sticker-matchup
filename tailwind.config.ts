@@ -30,6 +30,7 @@ export default {
         },
         need: "hsl(var(--need))",
         duplicate: "hsl(var(--duplicate))",
+        owned: "hsl(var(--owned))",
         get: "hsl(var(--get))",
         give: "hsl(var(--give))",
         destructive: {

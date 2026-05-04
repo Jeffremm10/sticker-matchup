@@ -8,46 +8,49 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Stadium / pitch palette */
-    --background: 60 20% 98%;
-    --foreground: 222 65% 12%;
+    /* Swap26 dark sports palette */
+    --background: 222 25% 7%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 65% 12%;
+    --card: 222 22% 11%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 65% 12%;
+    --popover: 222 22% 11%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 142 55% 28%;            /* pitch green */
-    --primary-foreground: 60 20% 98%;
-    --primary-glow: 142 65% 40%;
+    --primary: 142 76% 56%;            /* grass green #4ADE80 */
+    --primary-foreground: 222 47% 8%;
+    --primary-glow: 142 76% 65%;
 
-    --secondary: 222 65% 22%;          /* deep stadium blue */
-    --secondary-foreground: 60 20% 98%;
+    --secondary: 222 22% 16%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 142 15% 92%;
-    --muted-foreground: 222 20% 35%;
+    --muted: 222 18% 18%;
+    --muted-foreground: 220 10% 65%;
 
-    --accent: 45 92% 52%;              /* trophy gold */
-    --accent-foreground: 222 65% 12%;
+    --accent: 48 96% 53%;              /* gold #FACC15 */
+    --accent-foreground: 222 47% 8%;
 
-    --need: 0 78% 52%;                 /* red ring */
-    --duplicate: 215 90% 50%;          /* blue ring */
-    --get: 142 65% 38%;
-    --give: 215 88% 45%;
+    --owned: 142 76% 56%;
+    --duplicate: 48 96% 53%;
+    --need: 0 78% 60%;
+    --get: 142 76% 56%;
+    --give: 48 96% 53%;
 
-    --destructive: 0 78% 52%;
-    --destructive-foreground: 60 20% 98%;
+    --destructive: 0 78% 55%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 142 18% 86%;
-    --input: 142 18% 86%;
-    --ring: 142 55% 28%;
+    --border: 222 18% 20%;
+    --input: 222 18% 18%;
+    --ring: 142 76% 56%;
 
     --radius: 1rem;
 
-    --gradient-pitch: linear-gradient(135deg, hsl(142 55% 28%), hsl(142 65% 40%));
-    --gradient-stadium: linear-gradient(160deg, hsl(222 65% 22%), hsl(222 75% 32%));
-    --shadow-card: 0 12px 32px -12px hsl(222 65% 22% / 0.35);
+    --gradient-pitch: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 56%));
+    --gradient-stadium: linear-gradient(160deg, hsl(222 22% 11%), hsl(222 25% 7%));
+    --shadow-card: 0 12px 32px -12px hsl(0 0% 0% / 0.6);
+    --glow-owned: 0 0 20px hsl(142 76% 56% / 0.55);
+    --glow-duplicate: 0 0 20px hsl(48 96% 53% / 0.55);
 
     --sidebar-background: 0 0% 98%;
 

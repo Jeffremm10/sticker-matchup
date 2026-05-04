@@ -4,20 +4,24 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import Index from "./pages/Index";
+import { useProfile } from "@/hooks/useProfile";
 import Auth from "./pages/Auth";
-import Collection from "./pages/Collection";
+import Album from "./pages/Album";
+import OnboardingUsername from "./pages/OnboardingUsername";
 import Matches from "./pages/Matches";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import Swipe from "./pages/Swipe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const Protected = ({ children }: { children: JSX.Element }) => {
+const Protected = ({ children, requireUsername = true }: { children: JSX.Element; requireUsername?: boolean }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading…</div>;
+  const { data: profile, isLoading: pLoading } = useProfile();
+  if (loading || (user && pLoading)) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading…</div>;
   if (!user) return <Navigate to="/auth" replace />;
+  if (requireUsername && !profile?.username) return <Navigate to="/onboarding/username" replace />;
   return children;
 };
 
@@ -30,8 +34,10 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<Protected><Index /></Protected>} />
-            <Route path="/collection" element={<Protected><Collection /></Protected>} />
+            <Route path="/onboarding/username" element={<Protected requireUsername={false}><OnboardingUsername /></Protected>} />
+            <Route path="/" element={<Protected><Album /></Protected>} />
+            <Route path="/album" element={<Protected><Album /></Protected>} />
+            <Route path="/swipe" element={<Protected><Swipe /></Protected>} />
             <Route path="/matches" element={<Protected><Matches /></Protected>} />
             <Route path="/chat/:id" element={<Protected><Chat /></Protected>} />
             <Route path="/profile" element={<Protected><Profile /></Protected>} />

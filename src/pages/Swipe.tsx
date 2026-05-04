@@ -4,7 +4,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-mo
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/AppShell";
-import { StickerCard } from "@/components/StickerCard";
+import { SlotTile } from "@/components/album/SlotTile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, X, MapPin, Trophy, Sparkles, Lock } from "lucide-react";
@@ -114,7 +114,7 @@ export default function Swipe() {
                 <Sparkles className="w-12 h-12 text-primary mb-2"/>
                 <p className="font-bold">No more cards right now</p>
                 <p className="text-xs text-muted-foreground mt-1">Mark more stickers in your collection or check back later.</p>
-                <Button className="mt-4" onClick={()=>nav("/collection")}>Edit Collection</Button>
+              <Button className="mt-4" onClick={()=>nav("/album")}>Edit Album</Button>
               </div>
             )}
           </AnimatePresence>
@@ -194,7 +194,7 @@ function CardView({ c, me, stickerMap, likeOpacity, nopeOpacity }: any) {
           <div className="grid grid-cols-6 gap-1">
             {showReceive.map((id: number) => {
               const s = stickerMap.get(id);
-              return s ? <StickerCard key={id} code={s.code} nation={s.nation} size="sm" blurred={!isPro}/> : null;
+              return s ? <SlotTile key={id} id={id} code={s.code} size="sm"/> : null;
             })}
           </div>
         </div>
@@ -203,7 +203,7 @@ function CardView({ c, me, stickerMap, likeOpacity, nopeOpacity }: any) {
           <div className="grid grid-cols-6 gap-1">
             {showGive.map((id: number) => {
               const s = stickerMap.get(id);
-              return s ? <StickerCard key={id} code={s.code} nation={s.nation} size="sm"/> : null;
+              return s ? <SlotTile key={id} id={id} code={s.code} size="sm"/> : null;
             })}
           </div>
         </div>

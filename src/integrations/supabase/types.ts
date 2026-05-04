@@ -95,6 +95,7 @@ export type Database = {
           lat: number | null
           lng: number | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           bio?: string | null
@@ -105,6 +106,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           bio?: string | null
@@ -115,6 +117,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -166,6 +169,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_inventory: {
+        Row: {
+          status: string
+          sticker_id: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          status: string
+          sticker_id: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          status?: string
+          sticker_id?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -183,35 +207,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      user_stickers: {
-        Row: {
-          status: Database["public"]["Enums"]["sticker_status"]
-          sticker_id: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          status: Database["public"]["Enums"]["sticker_status"]
-          sticker_id: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          status?: Database["public"]["Enums"]["sticker_status"]
-          sticker_id?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_stickers_sticker_id_fkey"
-            columns: ["sticker_id"]
-            isOneToOne: false
-            referencedRelation: "stickers"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
