@@ -131,9 +131,9 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Suggest a Meeting Spot</SheetTitle>
-          {midpoint && otherProfile && (
+          {otherProfile && (
             <p className="text-xs text-muted-foreground text-left">
-              Spots near the midpoint between you and {otherProfile.display_name}
+              Search for a spot convenient for you and {otherProfile.display_name}
             </p>
           )}
         </SheetHeader>
