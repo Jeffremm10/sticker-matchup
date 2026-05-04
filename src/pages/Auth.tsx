@@ -15,6 +15,17 @@ const TEST_USERS = [
   { email: "sam@swap26.test",    label: "Sam (London)" },
   { email: "ines@swap26.test",   label: "Ines (Madrid)" },
   { email: "kenji@swap26.test",  label: "Kenji (Tokyo)" },
+  // Swiss users
+  { email: "anna@swap26.test",   label: "Anna (Zürich)" },
+  { email: "marco@swap26.test",  label: "Marco (Geneva)" },
+  { email: "lisa@swap26.test",   label: "Lisa (Bern)" },
+  { email: "thomas@swap26.test", label: "Thomas (Basel)" },
+  { email: "maria@swap26.test",  label: "Maria (Lugano)" },
+  { email: "stefan@swap26.test", label: "Stefan (Lucerne)" },
+  { email: "sophia@swap26.test", label: "Sophia (Lausanne)" },
+  { email: "daniel@swap26.test", label: "Daniel (Winterthur)" },
+  { email: "nina@swap26.test",   label: "Nina (St. Gallen)" },
+  { email: "boris@swap26.test",  label: "Boris (Neuchâtel)" },
 ];
 const TEST_PASSWORD = "Test1234!";
 

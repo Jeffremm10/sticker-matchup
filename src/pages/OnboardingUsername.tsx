@@ -46,7 +46,7 @@ export default function OnboardingUsername() {
     await qc.invalidateQueries({ queryKey: ["profile", user.id] });
     await qc.refetchQueries({ queryKey: ["profile", user.id] });
     setBusy(false);
-    nav("/album", { replace: true });
+    nav("/onboarding/location", { replace: true });
   };
 
   return (

@@ -8,6 +8,7 @@ import { useProfile } from "@/hooks/useProfile";
 import Auth from "./pages/Auth";
 import Album from "./pages/Album";
 import OnboardingUsername from "./pages/OnboardingUsername";
+import OnboardingLocation from "./pages/OnboardingLocation";
 import Matches from "./pages/Matches";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
@@ -22,6 +23,7 @@ const Protected = ({ children, requireUsername = true }: { children: JSX.Element
   if (loading || (user && pLoading)) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading…</div>;
   if (!user) return <Navigate to="/auth" replace />;
   if (requireUsername && !profile?.username) return <Navigate to="/onboarding/username" replace />;
+  if (requireUsername && profile?.username && profile?.lat == null) return <Navigate to="/onboarding/location" replace />;
   return children;
 };
 
@@ -35,6 +37,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding/username" element={<Protected requireUsername={false}><OnboardingUsername /></Protected>} />
+            <Route path="/onboarding/location" element={<Protected requireUsername={false}><OnboardingLocation /></Protected>} />
             <Route path="/" element={<Protected><Album /></Protected>} />
             <Route path="/album" element={<Protected><Album /></Protected>} />
             <Route path="/swipe" element={<Protected><Swipe /></Protected>} />
