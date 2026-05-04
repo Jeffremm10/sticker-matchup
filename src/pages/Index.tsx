@@ -1,2 +1,2 @@
-import Swipe from "./Swipe";
-export default function Index() { return <Swipe />; }
+import Album from "./Album";
+export default function Index() { return <Album />; }
