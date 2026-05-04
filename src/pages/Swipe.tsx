@@ -84,7 +84,7 @@ export default function Swipe() {
         return;
       }
       const r = (data as any)?.[0];
-      qc.setQueryData(["deck"], (old: Candidate[] = []) => old.slice(1));
+      qc.setQueryData(["deck", maxKm], (old: Candidate[] = []) => old.slice(1));
       qc.invalidateQueries({ queryKey: ["likes-received"] });
       x.set(0);
       if (r?.matched) {
