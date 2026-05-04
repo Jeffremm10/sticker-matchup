@@ -147,6 +147,8 @@ export type Database = {
           created_at: string
           id: string
           match_id: string
+          meta: Json | null
+          msg_type: string
           sender_id: string
         }
         Insert: {
@@ -154,6 +156,8 @@ export type Database = {
           created_at?: string
           id?: string
           match_id: string
+          meta?: Json | null
+          msg_type?: string
           sender_id: string
         }
         Update: {
@@ -161,6 +165,8 @@ export type Database = {
           created_at?: string
           id?: string
           match_id?: string
+          meta?: Json | null
+          msg_type?: string
           sender_id?: string
         }
         Relationships: [
