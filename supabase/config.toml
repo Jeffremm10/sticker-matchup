@@ -2,3 +2,6 @@ project_id = "ykzdieoubinpjkvucwkh"
 
 [functions.seed-test-users]
 verify_jwt = false
+
+[functions.find-venues]
+verify_jwt = false

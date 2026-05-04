@@ -5,9 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MapPin, Clock, Check, Calendar, Loader2 } from "lucide-react";
+import { MapPin, Clock, Check, Calendar, Loader2, Coffee, Train, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+const TYPE_ICON: Record<string, any> = {
+  coffee_shop: Coffee,
+  mall: ShoppingBag,
+  transit_hub: Train,
+};
 
 type Venue = { id?: string; name: string; type: string; lat: number; lng: number; address: string | null };
 
@@ -25,34 +31,12 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-async function fetchSuggestionsNear(lat: number, lng: number, signal: AbortSignal): Promise<Venue[]> {
-  // nwr = node/way/relation; out center gives lat/lng for non-node elements
-  const query = `[out:json][timeout:15];(nwr["amenity"="cafe"]["name"](around:3000,${lat},${lng});nwr["amenity"="fast_food"]["name"](around:3000,${lat},${lng});nwr["shop"="mall"]["name"](around:3000,${lat},${lng});nwr["railway"="station"]["name"](around:3000,${lat},${lng});nwr["amenity"="pub"]["name"](around:3000,${lat},${lng}););out center 40;`;
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    body: "data=" + encodeURIComponent(query),
-    signal,
+async function fetchSuggestionsNear(lat: number, lng: number): Promise<Venue[]> {
+  const { data, error } = await supabase.functions.invoke("find-venues", {
+    body: { lat, lng },
   });
-  if (!res.ok) throw new Error(`Overpass ${res.status}`);
-  const json = await res.json();
-  const elements: any[] = json.elements ?? [];
-
-  return elements
-    .filter((el) => el.tags?.name)
-    .map((el) => {
-      // nodes have el.lat/lon; ways/relations have el.center.lat/lon
-      const elLat: number = el.lat ?? el.center?.lat;
-      const elLng: number = el.lon ?? el.center?.lon;
-      if (!elLat || !elLng) return null;
-      const name: string = el.tags.name;
-      const dist = haversineKm([lat, lng], [elLat, elLng]);
-      const type = el.tags.railway ? "transit_hub" : el.tags.shop ? "mall" : "coffee_shop";
-      const address = [el.tags["addr:street"], el.tags["addr:housenumber"]].filter(Boolean).join(" ") || null;
-      return { name, lat: elLat, lng: elLng, type, address, dist };
-    })
-    .filter(Boolean)
-    .sort((a: any, b: any) => a.dist - b.dist)
-    .slice(0, 5) as Venue[];
+  if (error) throw error;
+  return (data?.venues ?? []) as Venue[];
 }
 
 type SelectorProps = {
@@ -81,20 +65,15 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
       ? [myProfile.lat, myProfile.lng]
       : null;
 
-  // Fetch from Overpass when sheet opens (or when midpoint becomes available)
+  // Fetch via edge function when sheet opens (or when midpoint becomes available)
   useEffect(() => {
     if (!open || !midpoint) return;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15000);
     setLoadingSuggestions(true);
     setLiveSuggestions([]);
-    fetchSuggestionsNear(midpoint[0], midpoint[1], ctrl.signal)
+    fetchSuggestionsNear(midpoint[0], midpoint[1])
       .then(setLiveSuggestions)
-      .catch((e) => {
-        if (!ctrl.signal.aborted) toast.error("Couldn't load nearby spots — type a custom location below.");
-      })
-      .finally(() => { clearTimeout(timer); setLoadingSuggestions(false); });
-    return () => { ctrl.abort(); clearTimeout(timer); };
+      .catch(() => toast.error("Couldn't load nearby spots — type a custom location below."))
+      .finally(() => setLoadingSuggestions(false));
   }, [open, midpoint?.[0], midpoint?.[1]]); // eslint-disable-line
 
   // Merge: live Overpass results first, then DB cache as fallback
@@ -158,7 +137,7 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
                 className={`w-full text-left rounded-xl border p-3 transition-all ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-primary shrink-0"/>
+                    {(() => { const I = TYPE_ICON[v.type] ?? MapPin; return <I className="w-4 h-4 text-primary shrink-0"/>; })()}
                     <div>
                       <div className="font-bold text-sm">{v.name}</div>
                       {v.address && <div className="text-[11px] text-muted-foreground">{v.address}</div>}
