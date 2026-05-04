@@ -19,7 +19,7 @@ export default function Album() {
   const { inventory, cycle, set } = useInventory();
 
   const { data: stickers = [] } = useQuery({
-    queryKey: ["stickers"],
+    queryKey: ["stickers", "v2"],
     queryFn: async () => {
       const { data, error } = await supabase.from("stickers").select("id,code,nation,seq").order("seq").limit(1100);
       if (error) throw error;
