@@ -31,73 +31,36 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-async function overpassGET(lat: number, lng: number, radiusM = 2000): Promise<Venue[]> {
-  // GET avoids CORS preflight; node-only means direct lat/lng (no out center needed)
-  const q = `[out:json][timeout:12];(node["amenity"~"cafe|fast_food|restaurant"]["name"](around:${radiusM},${lat},${lng});node["railway"="station"]["name"](around:${radiusM},${lat},${lng});node["shop"="mall"]["name"](around:${radiusM},${lat},${lng}););out 20;`;
-  const encoded = encodeURIComponent(q);
-
-  for (const base of [
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass-api.de/api/interpreter",
-  ]) {
-    try {
-      const res = await fetch(`${base}?data=${encoded}`);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const results: Venue[] = json.elements
-        .filter((el: any) => el.tags?.name && el.lat && el.lon)
-        .map((el: any) => ({
-          name: el.tags.name as string,
-          lat: el.lat as number,
-          lng: el.lon as number,
-          type: (el.tags.railway ? "transit_hub" : el.tags.shop ? "mall" : "coffee_shop") as Venue["type"],
-          address: [el.tags["addr:street"], el.tags["addr:housenumber"]].filter(Boolean).join(" ") || null,
-          label: "Nearby",
-        }))
-        .slice(0, 6);
-      if (results.length) return results;
-    } catch { /* try next mirror */ }
-  }
-  return [];
-}
-
-async function fetchSuggestionsNear(
-  lat: number, lng: number,
-  lat2?: number | null, lng2?: number | null,
-): Promise<Venue[]> {
-  const userDistKm = lat2 && lng2 ? haversineKm([lat, lng], [lat2, lng2]) : 0;
-
-  if (userDistKm > 80) {
-    // Far apart — search near each user, show best from both
-    const [nearMe, nearThem] = await Promise.all([
-      overpassGET(lat, lng, 2000),
-      lat2 && lng2 ? overpassGET(lat2, lng2, 2000) : Promise.resolve([]),
-    ]);
-    const all = [
-      ...nearMe.slice(0, 3).map((v) => ({ ...v, label: "Near you" })),
-      ...nearThem.slice(0, 3).map((v) => ({ ...v, label: "Near them" })),
-    ];
-    if (all.length) return all;
-  } else {
-    // Close — search around midpoint
-    const midLat = lat2 ? (lat + lat2) / 2 : lat;
-    const midLng = lng2 ? (lng + lng2) / 2 : lng;
-    const radius = Math.max(2000, userDistKm * 400);
-    const venues = await overpassGET(midLat, midLng, radius);
-    if (venues.length) return venues;
-    // Midpoint too rural — fall back to near each user
-    const [nearMe, nearThem] = await Promise.all([
-      overpassGET(lat, lng, 2000),
-      lat2 && lng2 ? overpassGET(lat2, lng2, 2000) : Promise.resolve([]),
-    ]);
-    const all = [
-      ...nearMe.slice(0, 3).map((v) => ({ ...v, label: "Near you" })),
-      ...nearThem.slice(0, 3).map((v) => ({ ...v, label: "Near them" })),
-    ];
-    if (all.length) return all;
-  }
-
-  throw new Error("No venues found nearby — type your spot below.");
+async function searchPlacesByName(query: string, lat: number, lng: number): Promise<Venue[]> {
+  if (query.length < 2) return [];
+  const params = new URLSearchParams({
+    q: query,
+    format: "json",
+    limit: "6",
+    addressdetails: "1",
+    "accept-language": "en",
+  });
+  // Bias results toward the user's area using viewbox
+  const d = 1.5;
+  params.set("viewbox", `${lng - d},${lat + d},${lng + d},${lat - d}`);
+  params.set("bounded", "0"); // not strict — show results outside too if nothing inside
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    headers: { "User-Agent": "StickerSwap/1.0 (contact@swap26.app)" },
+  });
+  if (!res.ok) throw new Error(`${res.status}`);
+  const items: any[] = await res.json();
+  return items
+    .filter((i) => i.display_name)
+    .map((i) => ({
+      name: i.name || i.display_name.split(",")[0],
+      lat: parseFloat(i.lat),
+      lng: parseFloat(i.lon),
+      type: (i.type === "station" || i.class === "railway" ? "transit_hub"
+           : i.type === "mall" || i.class === "shop" ? "mall"
+           : "coffee_shop") as Venue["type"],
+      address: [i.address?.road, i.address?.city || i.address?.town].filter(Boolean).join(", ") || i.display_name.split(",").slice(1, 3).join(",").trim() || null,
+      label: undefined,
+    }));
 }
 
 type SelectorProps = {
@@ -114,48 +77,44 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
   const qc = useQueryClient();
   const [time, setTime] = useState("");
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
-  const [customName, setCustomName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Venue[]>([]);
+  const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [liveSuggestions, setLiveSuggestions] = useState<Venue[]>([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
-  const midpoint: [number, number] | null =
-    myProfile?.lat && myProfile?.lng && otherProfile?.lat && otherProfile?.lng
-      ? [(myProfile.lat + otherProfile.lat) / 2, (myProfile.lng + otherProfile.lng) / 2]
-      : myProfile?.lat && myProfile?.lng
-      ? [myProfile.lat, myProfile.lng]
-      : null;
+  const searchLat = myProfile?.lat ?? 47.3769; // fallback: Zürich
+  const searchLng = myProfile?.lng ?? 8.5472;
 
-  // Fetch via edge function when sheet opens (or when midpoint becomes available)
+  // Debounced search
   useEffect(() => {
-    if (!open || !midpoint) return;
-    setLoadingSuggestions(true);
-    setLiveSuggestions([]);
-    fetchSuggestionsNear(midpoint[0], midpoint[1], otherProfile?.lat, otherProfile?.lng)
-      .then(setLiveSuggestions)
-      .catch((e: Error) => toast.info(e.message ?? "Type your meeting spot below."))
-      .finally(() => setLoadingSuggestions(false));
-  }, [open, midpoint?.[0], midpoint?.[1]]); // eslint-disable-line
+    if (!open) return;
+    if (searchQuery.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      searchPlacesByName(searchQuery, searchLat, searchLng)
+        .then(setSearchResults)
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchQuery, open]); // eslint-disable-line
 
-  // Merge: live Overpass results first, then DB cache as fallback
-  const suggestions = liveSuggestions.length > 0
-    ? liveSuggestions
-    : midpoint
-    ? [...nearbyVenues]
-        .sort((a, b) => haversineKm(midpoint, [a.lat, a.lng]) - haversineKm(midpoint, [b.lat, b.lng]))
-        .slice(0, 3)
-    : nearbyVenues.slice(0, 3);
+  // Reset on close
+  useEffect(() => {
+    if (!open) { setSearchQuery(""); setSearchResults([]); setSelectedVenue(null); }
+  }, [open]);
+
+  const displayName = selectedVenue?.name ?? searchQuery;
 
   const submit = async () => {
-    if (!customName.trim() || !time) return;
+    if (!displayName.trim() || !time) return;
     setBusy(true);
-    const isTemplate = selectedVenue && !selectedVenue.lat;
     const { error } = await supabase.from("meetup_slots").insert({
       match_id: matchId,
-      venue_name: customName.trim(),
-      venue_address: isTemplate ? null : (selectedVenue?.address ?? null),
-      venue_lat: isTemplate ? null : (selectedVenue?.lat ?? null),
-      venue_lng: isTemplate ? null : (selectedVenue?.lng ?? null),
+      venue_name: displayName.trim(),
+      venue_address: selectedVenue?.address ?? null,
+      venue_lat: selectedVenue?.lat ?? null,
+      venue_lng: selectedVenue?.lng ?? null,
       scheduled_at: new Date(time).toISOString(),
       suggested_by: myId,
       status: "pending",
@@ -180,63 +139,47 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
         </SheetHeader>
 
         <div className="mt-4 space-y-3">
-          {/* Custom input — always visible so it works even if API fails */}
+          {/* Live search input */}
           <div>
-            <Label className="text-xs font-bold">Where do you want to meet?</Label>
-            <Input
-              placeholder="e.g. Starbucks on Bahnhofstrasse, Zürich"
-              value={customName}
-              onChange={(e) => { setCustomName(e.target.value); setSelectedVenue(null); }}
-              className="mt-1"
-              autoFocus
-            />
+            <Label className="text-xs font-bold">Search for a meeting spot</Label>
+            <div className="relative mt-1">
+              <Input
+                placeholder="e.g. Starbucks, McDonald's, Zürich HB…"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setSelectedVenue(null); }}
+                autoFocus
+              />
+              {searching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground"/>
+              )}
+            </div>
           </div>
 
-          {/* Suggestions */}
-          {loadingSuggestions && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="w-3 h-3 animate-spin"/> Finding spots nearby…
+          {/* Search results */}
+          {searchResults.length > 0 && (
+            <div className="space-y-1.5 max-h-52 overflow-y-auto">
+              {searchResults.map((v) => {
+                const key = `${v.lat},${v.lng}`;
+                const sel = selectedVenue ? `${selectedVenue.lat},${selectedVenue.lng}` === key : false;
+                const Icon = TYPE_ICON[v.type] ?? MapPin;
+                return (
+                  <button key={key}
+                    onClick={() => { setSelectedVenue(v); setSearchQuery(v.name); setSearchResults([]); }}
+                    className={`w-full text-left rounded-xl border px-3 py-2 transition-all flex items-center gap-2 ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                    <Icon className="w-4 h-4 text-primary shrink-0"/>
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm truncate">{v.name}</div>
+                      {v.address && <div className="text-[11px] text-muted-foreground truncate">{v.address}</div>}
+                    </div>
+                    {sel && <Check className="w-4 h-4 text-primary ml-auto shrink-0"/>}
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          {!loadingSuggestions && suggestions.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1.5">
-                {suggestions[0]?.lat ? "Suggestions near you" : "Common meeting spots"}
-              </p>
-              <div className="space-y-1.5">
-                {suggestions.map((v) => {
-                  const isTemplate = !v.lat;
-                  const dist = !isTemplate && midpoint ? Math.round(haversineKm(midpoint, [v.lat, v.lng]) * 10) / 10 : null;
-                  const key = `${v.name}-${v.lat}-${v.lng}`;
-                  const sel = selectedVenue ? `${selectedVenue.name}-${selectedVenue.lat}-${selectedVenue.lng}` === key : false;
-                  const Icon = TYPE_ICON[v.type] ?? MapPin;
-                  return (
-                    <button key={key}
-                      onClick={() => {
-                        if (sel) { setSelectedVenue(null); setCustomName(""); }
-                        else { setSelectedVenue(v); setCustomName(v.name); }
-                      }}
-                      className={`w-full text-left rounded-xl border px-3 py-2 transition-all flex items-center justify-between ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-primary shrink-0"/>
-                        <div>
-                          <div className="font-bold text-sm">{v.name}</div>
-                          {v.address && !isTemplate && (
-                            <div className="text-[11px] text-muted-foreground">{v.address}</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {dist !== null && <span className="text-xs text-muted-foreground">{dist} km</span>}
-                        {v.label && <span className="text-[10px] bg-secondary rounded px-1">{v.label}</span>}
-                        {sel && <Check className="w-4 h-4 text-primary"/>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
+            <p className="text-xs text-muted-foreground">No results — try a different name or just continue with what you typed.</p>
           )}
 
           <div>
@@ -249,7 +192,7 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
           </div>
 
           <Button className="w-full" onClick={submit}
-            disabled={busy || ((!selectedVenue && !customName.trim()) || !time)}>
+            disabled={busy || !displayName.trim() || !time}>
             Send Meetup Suggestion
           </Button>
         </div>
