@@ -58,9 +58,20 @@ Deno.serve(async (req) => {
     const safe = String(body.query).replace(/[^a-zA-Z0-9 ]/g, "").trim();
     if (!safe) return new Response(JSON.stringify({ venues: [] }), { headers: { ...cors, "Content-Type": "application/json" } });
 
-    const q = `[out:json][timeout:15];(nwr["name"~"${safe}",i](around:5000,${lat},${lng}););out center 10;`;
-    const elements = await overpass(q);
-    const venues = toVenues(elements, lat, lng).slice(0, 6);
+    // Search a wider radius (25km) across named POIs that are likely meetup spots.
+    const q = `[out:json][timeout:20];(
+      nwr["name"~"${safe}",i]["amenity"](around:25000,${lat},${lng});
+      nwr["name"~"${safe}",i]["shop"](around:25000,${lat},${lng});
+      nwr["name"~"${safe}",i]["railway"="station"](around:25000,${lat},${lng});
+      nwr["name"~"${safe}",i]["public_transport"](around:25000,${lat},${lng});
+      nwr["name"~"${safe}",i]["tourism"](around:25000,${lat},${lng});
+    );out center 25;`;
+    let elements = await overpass(q);
+    // Fallback: any named entity within 10km if the typed search came up empty.
+    if (elements.length === 0) {
+      elements = await overpass(`[out:json][timeout:20];(nwr["name"~"${safe}",i](around:10000,${lat},${lng}););out center 25;`);
+    }
+    const venues = toVenues(elements, lat, lng).slice(0, 8);
     return new Response(JSON.stringify({ venues }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
