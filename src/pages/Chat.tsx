@@ -47,8 +47,10 @@ export default function Chat() {
     enabled: !!matchId && !!user,
     queryKey: ["compat", matchId],
     queryFn: async () => {
-      const { data } = await supabase.rpc("get_match_compatibility", { _match_id: matchId! });
-      return data?.[0] as { give_count: number; receive_count: number } | undefined;
+      try {
+        const { data } = await supabase.rpc("get_match_compatibility", { _match_id: matchId! });
+        return data?.[0] as { give_count: number; receive_count: number } | undefined;
+      } catch { return undefined; }
     },
   });
 
@@ -74,11 +76,17 @@ export default function Chat() {
     enabled: !!matchId,
     queryKey: ["messages", matchId],
     queryFn: async () => {
+      // Try extended columns first; fall back to basics if migration not yet applied
       const { data, error } = await supabase.from("messages")
         .select("id,sender_id,body,created_at,msg_type,meta")
         .eq("match_id", matchId!).order("created_at");
-      if (error) throw error;
-      return data as Msg[];
+      if (error) {
+        const { data: basic } = await supabase.from("messages")
+          .select("id,sender_id,body,created_at")
+          .eq("match_id", matchId!).order("created_at");
+        return (basic ?? []).map((m: any) => ({ ...m, msg_type: "text", meta: null })) as Msg[];
+      }
+      return (data ?? []).map((m: any) => ({ ...m, msg_type: m.msg_type ?? "text", meta: m.meta ?? null })) as Msg[];
     },
   });
 
@@ -98,10 +106,12 @@ export default function Chat() {
     enabled: !!matchId,
     queryKey: ["meetup_slot", matchId],
     queryFn: async () => {
-      const { data } = await supabase.from("meetup_slots")
-        .select("*").eq("match_id", matchId!).neq("status", "cancelled")
-        .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      return data as MeetupSlot | null;
+      try {
+        const { data } = await supabase.from("meetup_slots")
+          .select("*").eq("match_id", matchId!).neq("status", "cancelled")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        return data as MeetupSlot | null;
+      } catch { return null; }
     },
   });
 
@@ -122,16 +132,16 @@ export default function Chat() {
     enabled: !!matchId && meetupSlot?.status === "confirmed",
     queryKey: ["swap_session", matchId],
     queryFn: async () => {
-      const { data } = await supabase.from("swap_sessions")
-        .select("*").eq("match_id", matchId!).maybeSingle();
-      if (!data) {
-        // create session on first load after meetup confirmed
-        const { data: created } = await supabase.from("swap_sessions")
-          .insert({ match_id: matchId, pin: "" })
-          .select().single();
-        return created;
-      }
-      return data;
+      try {
+        const { data } = await supabase.from("swap_sessions")
+          .select("*").eq("match_id", matchId!).maybeSingle();
+        if (!data) {
+          const { data: created } = await supabase.from("swap_sessions")
+            .insert({ match_id: matchId, pin: "" }).select().single();
+          return created;
+        }
+        return data;
+      } catch { return null; }
     },
   });
 
