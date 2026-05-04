@@ -40,10 +40,10 @@ async function searchPlacesByName(query: string, lat: number, lng: number): Prom
     addressdetails: "1",
     "accept-language": "en",
   });
-  // Bias results toward the user's area using viewbox
-  const d = 1.5;
+  // Restrict results to a ~50km box around the user's location
+  const d = 0.5;
   params.set("viewbox", `${lng - d},${lat + d},${lng + d},${lat - d}`);
-  params.set("bounded", "0"); // not strict — show results outside too if nothing inside
+  params.set("bounded", "1");
   const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
     headers: { "User-Agent": "StickerSwap/1.0 (contact@swap26.app)" },
   });
