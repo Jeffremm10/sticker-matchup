@@ -215,6 +215,7 @@ export default function Chat() {
             session={swapSession}
             meetup={meetupSlot}
             matchId={matchId!}
+            myId={user!.id}
             isUserA={isUserA}
             otherName={otherProfile?.display_name ?? "them"}
           />

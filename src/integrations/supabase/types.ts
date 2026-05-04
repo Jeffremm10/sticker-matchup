@@ -181,38 +181,50 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avg_rating: number
           bio: string | null
           created_at: string
           display_name: string
           emergency_contact: string | null
           id: string
           is_pro: boolean
+          karma: number
           lat: number | null
           lng: number | null
+          rating_count: number
+          swap_count: number
           updated_at: string
           username: string | null
         }
         Insert: {
+          avg_rating?: number
           bio?: string | null
           created_at?: string
           display_name?: string
           emergency_contact?: string | null
           id: string
           is_pro?: boolean
+          karma?: number
           lat?: number | null
           lng?: number | null
+          rating_count?: number
+          swap_count?: number
           updated_at?: string
           username?: string | null
         }
         Update: {
+          avg_rating?: number
           bio?: string | null
           created_at?: string
           display_name?: string
           emergency_contact?: string | null
           id?: string
           is_pro?: boolean
+          karma?: number
           lat?: number | null
           lng?: number | null
+          rating_count?: number
+          swap_count?: number
           updated_at?: string
           username?: string | null
         }
@@ -384,6 +396,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          had_stickers: boolean
+          id: string
+          match_id: string
+          on_time: boolean
+          rated_id: string
+          rater_id: string
+          score: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          had_stickers?: boolean
+          id?: string
+          match_id: string
+          on_time?: boolean
+          rated_id: string
+          rater_id: string
+          score: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          had_stickers?: boolean
+          id?: string
+          match_id?: string
+          on_time?: boolean
+          rated_id?: string
+          rater_id?: string
+          score?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -503,37 +551,25 @@ export type Database = {
           receive_count: number
         }[]
       }
-      get_potential_matches:
-        | {
-            Args: { _limit?: number }
-            Returns: {
-              bio: string
-              display_name: string
-              give_count: number
-              give_ids: number[]
-              is_pro: boolean
-              lat: number
-              lng: number
-              receive_count: number
-              receive_ids: number[]
-              user_id: string
-            }[]
-          }
-        | {
-            Args: { _limit?: number; _max_km?: number }
-            Returns: {
-              bio: string
-              display_name: string
-              give_count: number
-              give_ids: number[]
-              is_pro: boolean
-              lat: number
-              lng: number
-              receive_count: number
-              receive_ids: number[]
-              user_id: string
-            }[]
-          }
+      get_potential_matches: {
+        Args: { _limit?: number; _max_km?: number }
+        Returns: {
+          avg_rating: number
+          bio: string
+          display_name: string
+          give_count: number
+          give_ids: number[]
+          is_pro: boolean
+          karma: number
+          lat: number
+          lng: number
+          rating_count: number
+          receive_count: number
+          receive_ids: number[]
+          swap_count: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

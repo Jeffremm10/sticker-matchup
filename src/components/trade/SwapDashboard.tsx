@@ -149,7 +149,7 @@ export function SwapDashboard({ session, meetup, matchId, myId, isUserA, otherNa
     if (!session) {
       // Session not yet created — insert with the flag already set
       await supabase.from("swap_sessions")
-        .insert({ match_id: matchId, pin: "", [field]: true });
+        .insert({ match_id: matchId, pin: "", [field]: true } as any);
     } else {
       await supabase.from("swap_sessions")
         .update({ [field]: true } as any).eq("match_id", matchId);
