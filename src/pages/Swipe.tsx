@@ -18,7 +18,7 @@ type Candidate = {
   lat: number | null; lng: number | null; is_pro: boolean;
   receive_count: number; give_count: number;
   receive_ids: number[]; give_ids: number[];
-  swap_count: number; avg_rating: number; rating_count: number;
+  swap_count: number; avg_rating: number; rating_count: number; karma: number;
 };
 
 const km = (a: any, b: any) => {
@@ -343,6 +343,9 @@ function CardView({ c, me, stickerMap, likeOpacity, nopeOpacity }: any) {
             {c.swap_count > 0 && (
               <span className="text-xs opacity-80">🤝 {c.swap_count} swap{c.swap_count !== 1 ? "s" : ""}</span>
             )}
+            <span className="text-xs opacity-80 flex items-center gap-1">
+              <ThumbsUp className="w-3 h-3"/> Trust {c.karma ?? 0}
+            </span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
