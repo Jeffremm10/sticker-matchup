@@ -1,18 +1,36 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { lovable } from "@/integrations/lovable";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
 
 export default function Auth() {
+  const { user, loading } = useAuth();
+  const nav = useNavigate();
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) nav("/", { replace: true });
+  }, [user, loading, nav]);
 
   const google = async () => {
     setBusy(true);
-    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (r.error) { toast.error("Google sign-in failed"); setBusy(false); }
+    try {
+      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+      if (r.error) { toast.error("Google sign-in failed"); setBusy(false); return; }
+      if (r.redirected) return; // browser will redirect
+      // tokens received inline — go to app
+      nav("/", { replace: true });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Sign-in error");
+      setBusy(false);
+    }
   };
+
+  if (!loading && user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-secondary to-background">
