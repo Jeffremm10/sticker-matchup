@@ -15,7 +15,7 @@ const TYPE_ICON: Record<string, any> = {
   transit_hub: Train,
 };
 
-type Venue = { id?: string; name: string; type: string; lat: number; lng: number; address: string | null };
+type Venue = { id?: string; name: string; type: string; lat: number; lng: number; address: string | null; label?: string };
 
 export type MeetupSlot = {
   id: string; match_id: string; venue_name: string; venue_address: string | null;
@@ -31,9 +31,12 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-async function fetchSuggestionsNear(lat: number, lng: number): Promise<Venue[]> {
+async function fetchSuggestionsNear(
+  lat: number, lng: number,
+  lat2?: number | null, lng2?: number | null,
+): Promise<Venue[]> {
   const { data, error } = await supabase.functions.invoke("find-venues", {
-    body: { lat, lng },
+    body: { lat, lng, lat2: lat2 ?? null, lng2: lng2 ?? null },
   });
   if (error) throw error;
   return (data?.venues ?? []) as Venue[];
@@ -70,7 +73,7 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
     if (!open || !midpoint) return;
     setLoadingSuggestions(true);
     setLiveSuggestions([]);
-    fetchSuggestionsNear(midpoint[0], midpoint[1])
+    fetchSuggestionsNear(midpoint[0], midpoint[1], otherProfile?.lat, otherProfile?.lng)
       .then(setLiveSuggestions)
       .catch(() => toast.error("Couldn't load nearby spots — type a custom location below."))
       .finally(() => setLoadingSuggestions(false));
@@ -140,7 +143,10 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
                     {(() => { const I = TYPE_ICON[v.type] ?? MapPin; return <I className="w-4 h-4 text-primary shrink-0"/>; })()}
                     <div>
                       <div className="font-bold text-sm">{v.name}</div>
-                      {v.address && <div className="text-[11px] text-muted-foreground">{v.address}</div>}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {v.address && <span className="text-[11px] text-muted-foreground">{v.address}</span>}
+                        {v.label && <span className="text-[10px] bg-secondary rounded px-1 font-medium">{v.label}</span>}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
