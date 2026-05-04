@@ -135,15 +135,19 @@ export default function Chat() {
       try {
         const { data } = await supabase.from("swap_sessions")
           .select("*").eq("match_id", matchId!).maybeSingle();
-        if (!data) {
-          const { data: created } = await supabase.from("swap_sessions")
-            .insert({ match_id: matchId, pin: "" }).select().single();
-          return created;
-        }
-        return data;
+        return data ?? null;
       } catch { return null; }
     },
   });
+
+  // Create session once when meetup first confirmed (not inside queryFn)
+  const meetupConfirmed = meetupSlot?.status === "confirmed";
+  useEffect(() => {
+    if (!meetupConfirmed || !matchId || swapSession !== null) return;
+    supabase.from("swap_sessions")
+      .insert({ match_id: matchId, pin: "" })
+      .then(() => qc.invalidateQueries({ queryKey: ["swap_session", matchId] }));
+  }, [meetupConfirmed, matchId]); // eslint-disable-line
 
   useEffect(() => {
     if (!matchId) return;
@@ -206,11 +210,11 @@ export default function Chat() {
         )}
 
         {/* live swap dashboard — once meetup confirmed */}
-        {swapSession && meetupSlot?.status === "confirmed" && (
+        {meetupSlot?.status === "confirmed" && (
           <SwapDashboard
             session={swapSession}
+            meetup={meetupSlot}
             matchId={matchId!}
-            myId={user!.id}
             isUserA={isUserA}
             otherName={otherProfile?.display_name ?? "them"}
           />

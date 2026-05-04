@@ -4,35 +4,46 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Navigation, MapPin, Handshake, BookOpen, Star } from "lucide-react";
+import { Navigation, MapPin, Handshake, BookOpen, Star, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 type Session = {
   id: string; match_id: string;
-  heading_a: boolean; heading_b: boolean;
-  arrived_a: boolean; arrived_b: boolean;
-  complete_a: boolean; complete_b: boolean;
-  completed: boolean;
+  heading_a?: boolean; heading_b?: boolean;
+  arrived_a?: boolean; arrived_b?: boolean;
+  complete_a?: boolean; complete_b?: boolean;
+  completed?: boolean;
 };
 
-export function SwapDashboard({
-  session, matchId, myId, isUserA, otherName,
-}: {
-  session: Session; matchId: string; myId: string; isUserA: boolean; otherName: string;
-}) {
+type MeetupSlot = {
+  venue_name: string; venue_address: string | null; scheduled_at: string;
+};
+
+type Props = {
+  session: Session | null;
+  meetup: MeetupSlot;
+  matchId: string;
+  isUserA: boolean;
+  otherName: string;
+};
+
+export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: Props) {
   const qc = useQueryClient();
   const nav = useNavigate();
   const [albumPrompt, setAlbumPrompt] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const myHeading   = isUserA ? session.heading_a  : session.heading_b;
-  const myArrived   = isUserA ? session.arrived_a  : session.arrived_b;
-  const myComplete  = isUserA ? session.complete_a : session.complete_b;
-  const theyHeading = isUserA ? session.heading_b  : session.heading_a;
-  const theyArrived = isUserA ? session.arrived_b  : session.arrived_a;
-  const theyComplete = isUserA ? session.complete_b : session.complete_a;
+  const myHeading   = isUserA ? !!session?.heading_a  : !!session?.heading_b;
+  const myArrived   = isUserA ? !!session?.arrived_a  : !!session?.arrived_b;
+  const myComplete  = isUserA ? !!session?.complete_a : !!session?.complete_b;
+  const theyHeading = isUserA ? !!session?.heading_b  : !!session?.heading_a;
+  const theyArrived = isUserA ? !!session?.arrived_b  : !!session?.arrived_a;
+  const theyComplete = isUserA ? !!session?.complete_b : !!session?.complete_a;
+  const done = !!session?.completed;
 
   const setFlag = async (field: string) => {
+    if (!session) return;
     setBusy(true);
     await supabase.from("swap_sessions").update({ [field]: true } as any).eq("match_id", matchId);
     qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
@@ -41,97 +52,120 @@ export function SwapDashboard({
 
   const confirmSwap = async () => {
     setBusy(true);
-    const { data, error } = await supabase.rpc("confirm_swap", { _match_id: matchId, _is_user_a: isUserA });
-    if (error) { toast.error(error.message); setBusy(false); return; }
-    qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
-    if ((data as any)?.completed) {
-      toast.success("Swap complete! +10 reputation for both of you.");
-      setAlbumPrompt(true);
-    } else {
-      toast.success("Marked! Waiting for the other person to confirm.");
+    try {
+      const { data, error } = await supabase.rpc("confirm_swap", { _match_id: matchId, _is_user_a: isUserA });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
+      if ((data as any)?.completed) {
+        toast.success("Swap done! +10 reputation each.");
+        setAlbumPrompt(true);
+      } else {
+        toast.success("Marked! Waiting for the other person.");
+      }
+    } catch {
+      // Fallback if RPC not deployed yet
+      await supabase.from("swap_sessions")
+        .update({ [isUserA ? "complete_a" : "complete_b"]: true } as any)
+        .eq("match_id", matchId);
+      qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
+      toast.success("Marked as complete!");
     }
     setBusy(false);
   };
 
-  if (session.completed) {
+  // Completed state
+  if (done) {
     return (
-      <div className="rounded-2xl border border-primary bg-primary/5 p-4 text-center space-y-1">
-        <Handshake className="w-6 h-6 text-primary mx-auto"/>
-        <p className="font-bold">Swap done — great trade!</p>
+      <div className="rounded-2xl border border-primary bg-primary/5 p-4 text-center space-y-2">
+        <Handshake className="w-8 h-8 text-primary mx-auto"/>
+        <p className="font-black text-lg">Trade done!</p>
         <p className="text-xs text-muted-foreground">Both of you got +10 reputation.</p>
-        <Button size="sm" variant="outline" className="mt-2" onClick={() => nav("/album")}>
+        <Button size="sm" className="w-full mt-1" onClick={() => nav("/album")}>
           <BookOpen className="w-3.5 h-3.5 mr-1"/> Update my album
         </Button>
       </div>
     );
   }
 
+  // Step indicator
+  const step = !myHeading ? 1 : !myArrived ? 2 : !myComplete ? 3 : 4;
+
   return (
     <>
-      <div className="rounded-2xl border border-primary bg-primary/5 p-3 space-y-3">
-        <p className="font-bold text-sm flex items-center gap-1.5">
-          <Navigation className="w-4 h-4 text-primary"/> On the way
-        </p>
+      <div className="rounded-2xl border border-primary/40 bg-card p-4 space-y-4">
 
-        {/* Heading there */}
-        <div className="grid grid-cols-2 gap-2 text-center text-xs">
-          <div className={`rounded-lg p-2 ${myHeading ? "bg-primary/20 text-primary font-bold" : "bg-muted text-muted-foreground"}`}>
-            You {myHeading ? "🚶 On the way" : "—"}
-          </div>
-          <div className={`rounded-lg p-2 ${theyHeading ? "bg-primary/20 text-primary font-bold" : "bg-muted text-muted-foreground"}`}>
-            {otherName} {theyHeading ? "🚶 On the way" : "—"}
+        {/* Venue + time header */}
+        <div className="flex items-start gap-3 pb-3 border-b border-border">
+          <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0"/>
+          <div>
+            <p className="font-bold text-sm">{meetup.venue_name}</p>
+            {meetup.venue_address && <p className="text-xs text-muted-foreground">{meetup.venue_address}</p>}
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+              <Clock className="w-3 h-3"/>
+              {format(new Date(meetup.scheduled_at), "EEE d MMM · HH:mm")}
+            </p>
           </div>
         </div>
-        {!myHeading && (
-          <Button size="sm" className="w-full" onClick={() => setFlag(isUserA ? "heading_a" : "heading_b")} disabled={busy}>
-            <Navigation className="w-3.5 h-3.5 mr-1"/> I'm Heading There
-          </Button>
-        )}
 
-        {/* Arrived */}
+        {/* Step 1: Heading there */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className={myHeading ? "text-primary font-bold" : ""}>You {myHeading ? "🚶 On the way" : "—"}</span>
+            <span className={theyHeading ? "text-primary font-bold" : ""}>{otherName} {theyHeading ? "🚶 On the way" : "—"}</span>
+          </div>
+          {!myHeading && (
+            <Button className="w-full" onClick={() => setFlag(isUserA ? "heading_a" : "heading_b")} disabled={busy}>
+              <Navigation className="w-4 h-4 mr-2"/> I'm Heading There
+            </Button>
+          )}
+        </div>
+
+        {/* Step 2: Arrived */}
         {myHeading && (
-          <>
-            <div className="grid grid-cols-2 gap-2 text-center text-xs">
-              <div className={`rounded-lg p-2 ${myArrived ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 font-bold" : "bg-muted text-muted-foreground"}`}>
-                You {myArrived ? "📍 Here" : "—"}
-              </div>
-              <div className={`rounded-lg p-2 ${theyArrived ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 font-bold" : "bg-muted text-muted-foreground"}`}>
-                {otherName} {theyArrived ? "📍 Here" : "—"}
-              </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className={myArrived ? "text-green-600 font-bold" : ""}>You {myArrived ? "📍 Arrived" : "—"}</span>
+              <span className={theyArrived ? "text-green-600 font-bold" : ""}>{otherName} {theyArrived ? "📍 Arrived" : "—"}</span>
             </div>
             {!myArrived && (
-              <Button size="sm" variant="outline" className="w-full" onClick={() => setFlag(isUserA ? "arrived_a" : "arrived_b")} disabled={busy}>
-                <MapPin className="w-3.5 h-3.5 mr-1"/> I've Arrived
+              <Button variant="outline" className="w-full" onClick={() => setFlag(isUserA ? "arrived_a" : "arrived_b")} disabled={busy}>
+                <MapPin className="w-4 h-4 mr-2"/> I've Arrived
               </Button>
             )}
-          </>
+          </div>
         )}
 
-        {/* Swap complete */}
+        {/* Step 3: Swap complete */}
         {myArrived && (
-          <>
-            <div className="grid grid-cols-2 gap-2 text-center text-xs">
-              <div className={`rounded-lg p-2 ${myComplete ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold" : "bg-muted text-muted-foreground"}`}>
-                You {myComplete ? "🤝 Done" : "—"}
-              </div>
-              <div className={`rounded-lg p-2 ${theyComplete ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 font-bold" : "bg-muted text-muted-foreground"}`}>
-                {otherName} {theyComplete ? "🤝 Done" : "—"}
-              </div>
+          <div className="space-y-2">
+            {theyArrived && !myComplete && (
+              <p className="text-xs text-center text-muted-foreground">
+                {otherName} is here too — do your swap, then tap below!
+              </p>
+            )}
+            {!theyArrived && (
+              <p className="text-xs text-center text-muted-foreground">
+                Waiting for {otherName} to arrive…
+              </p>
+            )}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className={myComplete ? "text-amber-600 font-bold" : ""}>You {myComplete ? "🤝 Done" : "—"}</span>
+              <span className={theyComplete ? "text-amber-600 font-bold" : ""}>{otherName} {theyComplete ? "🤝 Done" : "—"}</span>
             </div>
-            {!myComplete && (
-              <Button size="sm" className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+            {!myComplete ? (
+              <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                 onClick={confirmSwap} disabled={busy}>
-                <Handshake className="w-3.5 h-3.5 mr-1"/> Swap Complete
+                <Handshake className="w-4 h-4 mr-2"/> Swap Complete
               </Button>
+            ) : (
+              <p className="text-xs text-center text-muted-foreground py-1">
+                Waiting for {otherName} to confirm…
+              </p>
             )}
-            {myComplete && !session.completed && (
-              <p className="text-xs text-center text-muted-foreground">Waiting for {otherName} to confirm…</p>
-            )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Album update prompt */}
       <Dialog open={albumPrompt} onOpenChange={setAlbumPrompt}>
         <DialogContent>
           <DialogHeader>
@@ -146,9 +180,7 @@ export function SwapDashboard({
             <Button className="flex-1" onClick={() => { setAlbumPrompt(false); nav("/album"); }}>
               <BookOpen className="w-4 h-4 mr-1"/> Update my album
             </Button>
-            <Button variant="outline" className="flex-1" onClick={() => setAlbumPrompt(false)}>
-              Later
-            </Button>
+            <Button variant="outline" className="flex-1" onClick={() => setAlbumPrompt(false)}>Later</Button>
           </div>
         </DialogContent>
       </Dialog>
