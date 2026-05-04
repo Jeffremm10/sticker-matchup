@@ -216,21 +216,49 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_potential_matches: {
-        Args: { _limit?: number }
+      get_likes_received: {
+        Args: never
         Returns: {
-          bio: string
-          display_name: string
+          anon_id: string
+          distance_km: number
           give_count: number
           give_ids: number[]
           is_pro: boolean
-          lat: number
-          lng: number
           receive_count: number
           receive_ids: number[]
-          user_id: string
         }[]
       }
+      get_potential_matches:
+        | {
+            Args: { _limit?: number }
+            Returns: {
+              bio: string
+              display_name: string
+              give_count: number
+              give_ids: number[]
+              is_pro: boolean
+              lat: number
+              lng: number
+              receive_count: number
+              receive_ids: number[]
+              user_id: string
+            }[]
+          }
+        | {
+            Args: { _limit?: number; _max_km?: number }
+            Returns: {
+              bio: string
+              display_name: string
+              give_count: number
+              give_ids: number[]
+              is_pro: boolean
+              lat: number
+              lng: number
+              receive_count: number
+              receive_ids: number[]
+              user_id: string
+            }[]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
