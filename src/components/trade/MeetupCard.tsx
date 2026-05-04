@@ -56,6 +56,7 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Venue[]>([]);
+  const [suggestedVenues, setSuggestedVenues] = useState<Venue[]>(nearbyVenues);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -74,6 +75,41 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
   // Best available location: GPS > profile > hardcoded Zürich
   const searchLat = geoLat ?? myProfile?.lat ?? 47.3769;
   const searchLng = geoLng ?? myProfile?.lng ?? 8.5472;
+
+  useEffect(() => {
+    setSuggestedVenues(nearbyVenues);
+  }, [nearbyVenues]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (nearbyVenues.length > 0) return;
+
+    let cancelled = false;
+    setSearching(true);
+
+    supabase.functions.invoke("find-venues", {
+      body: {
+        lat: searchLat,
+        lng: searchLng,
+        lat2: otherProfile?.lat ?? null,
+        lng2: otherProfile?.lng ?? null,
+      },
+    })
+      .then(({ data, error }) => {
+        if (cancelled || error) return;
+        setSuggestedVenues((data?.venues ?? []) as Venue[]);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestedVenues([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, nearbyVenues.length, otherProfile?.lat, otherProfile?.lng, searchLat, searchLng]);
 
   // Debounced search
   useEffect(() => {
@@ -144,6 +180,36 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
               )}
             </div>
           </div>
+
+          {searchQuery.length < 2 && suggestedVenues.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-muted-foreground">Suggested nearby spots</div>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                {suggestedVenues.map((v) => {
+                  const key = `${v.label ?? "nearby"}-${v.lat},${v.lng}`;
+                  const sel = selectedVenue ? `${selectedVenue.lat},${selectedVenue.lng}` === `${v.lat},${v.lng}` : false;
+                  const Icon = TYPE_ICON[v.type] ?? MapPin;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => { setSelectedVenue(v); setSearchQuery(v.name); }}
+                      className={`w-full text-left rounded-xl border px-3 py-2 transition-all flex items-center gap-2 ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}
+                    >
+                      <Icon className="w-4 h-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-sm truncate">{v.name}</div>
+                          {v.label && <span className="text-[10px] text-muted-foreground shrink-0">{v.label}</span>}
+                        </div>
+                        {v.address && <div className="text-[11px] text-muted-foreground truncate">{v.address}</div>}
+                      </div>
+                      {sel && <Check className="w-4 h-4 text-primary ml-auto shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Search results */}
           {searchResults.length > 0 && (
