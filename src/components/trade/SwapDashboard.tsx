@@ -34,7 +34,7 @@ export function SwapDashboard({
 
   const setFlag = async (field: string) => {
     setBusy(true);
-    await supabase.from("swap_sessions").update({ [field]: true }).eq("match_id", matchId);
+    await supabase.from("swap_sessions").update({ [field]: true } as any).eq("match_id", matchId);
     qc.invalidateQueries({ queryKey: ["swap_session", matchId] });
     setBusy(false);
   };
