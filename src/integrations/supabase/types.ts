@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      check_ins: {
+        Row: {
+          emergency_contact: string | null
+          ended_at: string | null
+          id: string
+          started_at: string
+          status: string
+          user_id: string
+          venue_id: string
+        }
+        Insert: {
+          emergency_contact?: string | null
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          user_id: string
+          venue_id: string
+        }
+        Update: {
+          emergency_contact?: string | null
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          user_id?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_swipes: {
         Row: {
           count: number
@@ -53,12 +91,64 @@ export type Database = {
         }
         Relationships: []
       }
+      meetup_slots: {
+        Row: {
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          match_id: string
+          scheduled_at: string
+          status: string
+          suggested_by: string
+          venue_address: string | null
+          venue_lat: number | null
+          venue_lng: number | null
+          venue_name: string
+        }
+        Insert: {
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          match_id: string
+          scheduled_at: string
+          status?: string
+          suggested_by: string
+          venue_address?: string | null
+          venue_lat?: number | null
+          venue_lng?: number | null
+          venue_name: string
+        }
+        Update: {
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          match_id?: string
+          scheduled_at?: string
+          status?: string
+          suggested_by?: string
+          venue_address?: string | null
+          venue_lat?: number | null
+          venue_lng?: number | null
+          venue_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetup_slots_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string
           created_at: string
           id: string
           match_id: string
+          meta: Json | null
+          msg_type: string
           sender_id: string
         }
         Insert: {
@@ -66,6 +156,8 @@ export type Database = {
           created_at?: string
           id?: string
           match_id: string
+          meta?: Json | null
+          msg_type?: string
           sender_id: string
         }
         Update: {
@@ -73,6 +165,8 @@ export type Database = {
           created_at?: string
           id?: string
           match_id?: string
+          meta?: Json | null
+          msg_type?: string
           sender_id?: string
         }
         Relationships: [
@@ -90,6 +184,7 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string
+          emergency_contact: string | null
           id: string
           is_pro: boolean
           lat: number | null
@@ -101,6 +196,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string
+          emergency_contact?: string | null
           id: string
           is_pro?: boolean
           lat?: number | null
@@ -112,6 +208,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string
+          emergency_contact?: string | null
           id?: string
           is_pro?: boolean
           lat?: number | null
@@ -148,6 +245,59 @@ export type Database = {
         }
         Relationships: []
       }
+      swap_sessions: {
+        Row: {
+          arrived_a: boolean
+          arrived_b: boolean
+          complete_a: boolean
+          complete_b: boolean
+          completed: boolean
+          created_at: string
+          heading_a: boolean
+          heading_b: boolean
+          id: string
+          match_id: string | null
+          pin: string
+          trade_id: string | null
+        }
+        Insert: {
+          arrived_a?: boolean
+          arrived_b?: boolean
+          complete_a?: boolean
+          complete_b?: boolean
+          completed?: boolean
+          created_at?: string
+          heading_a?: boolean
+          heading_b?: boolean
+          id?: string
+          match_id?: string | null
+          pin?: string
+          trade_id?: string | null
+        }
+        Update: {
+          arrived_a?: boolean
+          arrived_b?: boolean
+          complete_a?: boolean
+          complete_b?: boolean
+          completed?: boolean
+          created_at?: string
+          heading_a?: boolean
+          heading_b?: boolean
+          id?: string
+          match_id?: string | null
+          pin?: string
+          trade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "swap_sessions_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       swipes: {
         Row: {
           created_at: string
@@ -171,6 +321,47 @@ export type Database = {
           sender_id?: string
         }
         Relationships: []
+      }
+      trade_proposals: {
+        Row: {
+          created_at: string
+          give_ids: number[]
+          id: string
+          match_id: string
+          proposer_id: string
+          receive_ids: number[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          give_ids?: number[]
+          id?: string
+          match_id: string
+          proposer_id: string
+          receive_ids?: number[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          give_ids?: number[]
+          id?: string
+          match_id?: string
+          proposer_id?: string
+          receive_ids?: number[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_proposals_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_inventory: {
         Row: {
@@ -211,11 +402,88 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_nominations: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_nominations_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venues: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          is_verified: boolean
+          lat: number
+          lng: number
+          name: string
+          nominations: number
+          osm_id: string | null
+          swap_count: number
+          type: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          lat: number
+          lng: number
+          name: string
+          nominations?: number
+          osm_id?: string | null
+          swap_count?: number
+          type: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          lat?: number
+          lng?: number
+          name?: string
+          nominations?: number
+          osm_id?: string | null
+          swap_count?: number
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      confirm_swap: {
+        Args: { _is_user_a: boolean; _match_id: string }
+        Returns: {
+          completed: boolean
+        }[]
+      }
       get_likes_received: {
         Args: never
         Returns: {
@@ -226,6 +494,13 @@ export type Database = {
           is_pro: boolean
           receive_count: number
           receive_ids: number[]
+        }[]
+      }
+      get_match_compatibility: {
+        Args: { _match_id: string }
+        Returns: {
+          give_count: number
+          receive_count: number
         }[]
       }
       get_potential_matches:
@@ -276,6 +551,17 @@ export type Database = {
           matched: boolean
           remaining: number
         }[]
+      }
+      upsert_osm_venue: {
+        Args: {
+          _address: string
+          _lat: number
+          _lng: number
+          _name: string
+          _osm_id: string
+          _type: string
+        }
+        Returns: string
       }
     }
     Enums: {

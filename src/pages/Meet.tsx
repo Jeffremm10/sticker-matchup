@@ -87,7 +87,7 @@ export default function Meet() {
   const { data: dbVenues = [] } = useQuery<Venue[]>({
     enabled: !!user,
     queryKey: ["venues"],
-    queryFn: async () => (await supabase.from("venues").select("*")).data ?? [],
+    queryFn: async () => ((await supabase.from("venues").select("*")).data ?? []) as unknown as Venue[],
   });
 
   // ── active check-ins at selected venue ────────────────────────────────
@@ -97,10 +97,16 @@ export default function Meet() {
     queryFn: async () => {
       const { data } = await supabase
         .from("check_ins")
-        .select("id,user_id,venue_id,started_at,status,profiles(display_name,username)")
+        .select("id,user_id,venue_id,started_at,status")
         .eq("venue_id", selectedVenue!.id)
         .eq("status", "active");
-      return (data ?? []) as ActiveCheckin[];
+      const rows = data ?? [];
+      const ids = Array.from(new Set(rows.map((r: any) => r.user_id)));
+      const { data: profs } = ids.length
+        ? await supabase.from("profiles").select("id,display_name,username").in("id", ids)
+        : { data: [] as any[] };
+      const pmap = new Map((profs ?? []).map((p: any) => [p.id, p]));
+      return rows.map((r: any) => ({ ...r, profiles: pmap.get(r.user_id) ?? null })) as ActiveCheckin[];
     },
     refetchInterval: 15000,
   });
