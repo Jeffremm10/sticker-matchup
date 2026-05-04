@@ -33,39 +33,11 @@ function haversineKm(a: [number, number], b: [number, number]) {
 
 async function searchPlacesByName(query: string, lat: number, lng: number): Promise<Venue[]> {
   if (query.length < 2) return [];
-
-  // Strip special chars so "McDonald's" → "McDonald" still matches OSM names
-  const safe = query.replace(/[^a-zA-Z0-9 ]/g, "").trim();
-  if (!safe) return [];
-
-  // Overpass name-regex search within 5km — best for finding chains by name
-  const q = `[out:json][timeout:10];(node["name"~"${safe}",i](around:5000,${lat},${lng});way["name"~"${safe}",i](around:5000,${lat},${lng}););out center 10;`;
-
-  for (const base of [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-  ]) {
-    try {
-      const res = await fetch(`${base}?data=${encodeURIComponent(q)}`);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const results: Venue[] = json.elements
-        .map((el: any) => {
-          const elLat: number = el.lat ?? el.center?.lat;
-          const elLng: number = el.lon ?? el.center?.lon;
-          if (!elLat || !elLng || !el.tags?.name) return null;
-          const type: Venue["type"] =
-            el.tags.railway ? "transit_hub" :
-            el.tags.shop ? "mall" : "coffee_shop";
-          const address = [el.tags["addr:street"], el.tags["addr:housenumber"]]
-            .filter(Boolean).join(" ") || null;
-          return { name: el.tags.name as string, lat: elLat, lng: elLng, type, address };
-        })
-        .filter(Boolean) as Venue[];
-      if (results.length) return results.slice(0, 6);
-    } catch { continue; }
-  }
-  return [];
+  const { data, error } = await supabase.functions.invoke("find-venues", {
+    body: { lat, lng, query },
+  });
+  if (error) throw new Error(error.message);
+  return (data?.venues ?? []) as Venue[];
 }
 
 type SelectorProps = {

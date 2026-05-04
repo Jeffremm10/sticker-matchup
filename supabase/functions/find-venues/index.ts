@@ -3,18 +3,11 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function haversineKm(a: [number, number], b: [number, number]) {
-  const R = 6371, toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b[0] - a[0]), dLng = toRad(b[1] - a[1]);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
-
-async function overpassQuery(lat: number, lng: number, radiusM: number) {
-  const q = `[out:json][timeout:20];(nwr["amenity"="cafe"]["name"](around:${radiusM},${lat},${lng});nwr["amenity"="fast_food"]["name"](around:${radiusM},${lat},${lng});nwr["shop"="mall"]["name"](around:${radiusM},${lat},${lng});nwr["railway"="station"]["name"](around:${radiusM},${lat},${lng});nwr["amenity"="restaurant"]["name"](around:${radiusM},${lat},${lng}););out center 60;`;
-
-  // Try primary mirror, fall back to secondary
-  for (const base of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]) {
+async function overpass(q: string) {
+  for (const base of [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ]) {
     try {
       const res = await fetch(base, {
         method: "POST",
@@ -29,65 +22,74 @@ async function overpassQuery(lat: number, lng: number, radiusM: number) {
   return [];
 }
 
-function parseElements(elements: any[], originLat: number, originLng: number) {
+function toVenues(elements: any[], originLat: number, originLng: number, label?: string) {
+  const R = 6371, toRad = (d: number) => d * Math.PI / 180;
+  const dist = (a: [number,number], b: [number,number]) => {
+    const dLat = toRad(b[0]-a[0]), dLng = toRad(b[1]-a[1]);
+    const x = Math.sin(dLat/2)**2 + Math.cos(toRad(a[0]))*Math.cos(toRad(b[0]))*Math.sin(dLng/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+  };
   return elements
-    .filter((el) => el.tags?.name)
     .map((el) => {
       const lat: number = el.lat ?? el.center?.lat;
       const lng: number = el.lon ?? el.center?.lon;
-      if (!lat || !lng) return null;
-      const dist = haversineKm([originLat, originLng], [lat, lng]);
+      if (!lat || !lng || !el.tags?.name) return null;
       const type = el.tags.railway ? "transit_hub" : el.tags.shop ? "mall" : "coffee_shop";
       const address = [el.tags["addr:street"], el.tags["addr:housenumber"]].filter(Boolean).join(" ") || null;
-      return { name: el.tags.name as string, lat, lng, type, address, dist };
+      return { name: el.tags.name, lat, lng, type, address, dist: dist([originLat,originLng],[lat,lng]), label };
     })
     .filter(Boolean)
-    .sort((a: any, b: any) => a.dist - b.dist) as any[];
+    .sort((a:any,b:any) => a.dist - b.dist);
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
-  const { lat, lng, lat2, lng2 } = await req.json();
+  const body = await req.json();
+  const { lat, lng } = body;
   if (!lat || !lng) {
     return new Response(JSON.stringify({ error: "lat/lng required" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
-  // Calculate distance between users to pick sensible search strategy
-  const userDistKm = lat2 && lng2 ? haversineKm([lat, lng], [lat2, lng2]) : 0;
+  // ── name search mode ──────────────────────────────────────────────────
+  if (body.query) {
+    const safe = String(body.query).replace(/[^a-zA-Z0-9 ]/g, "").trim();
+    if (!safe) return new Response(JSON.stringify({ venues: [] }), { headers: { ...cors, "Content-Type": "application/json" } });
+
+    const q = `[out:json][timeout:15];(nwr["name"~"${safe}",i](around:5000,${lat},${lng}););out center 10;`;
+    const elements = await overpass(q);
+    const venues = toVenues(elements, lat, lng).slice(0, 6);
+    return new Response(JSON.stringify({ venues }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  // ── auto nearby mode (for Meet tab) ──────────────────────────────────
+  const { lat2, lng2 } = body;
+  const distKm = lat2 && lng2
+    ? (() => { const R=6371,t=(d:number)=>d*Math.PI/180,dLa=t(lat2-lat),dLo=t(lng2-lng),x=Math.sin(dLa/2)**2+Math.cos(t(lat))*Math.cos(t(lat2))*Math.sin(dLo/2)**2; return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); })()
+    : 0;
 
   let venues: any[] = [];
-
-  if (userDistKm > 80 || !lat2 || !lng2) {
-    // Users are far apart or only one location known:
-    // search near each user separately with 5km radius
-    const [elemsA, elemsB] = await Promise.all([
-      overpassQuery(lat, lng, 5000),
-      lat2 && lng2 ? overpassQuery(lat2, lng2, 5000) : Promise.resolve([]),
+  if (distKm > 80 || !lat2 || !lng2) {
+    const [a, b] = await Promise.all([
+      overpass(`[out:json][timeout:15];(nwr["amenity"~"cafe|fast_food|restaurant"]["name"](around:5000,${lat},${lng});nwr["railway"="station"]["name"](around:5000,${lat},${lng});nwr["shop"="mall"]["name"](around:5000,${lat},${lng}););out center 30;`),
+      lat2 && lng2 ? overpass(`[out:json][timeout:15];(nwr["amenity"~"cafe|fast_food|restaurant"]["name"](around:5000,${lat2},${lng2});nwr["railway"="station"]["name"](around:5000,${lat2},${lng2}););out center 20;`) : Promise.resolve([]),
     ]);
-    const nearA = parseElements(elemsA, lat, lng).slice(0, 3).map((v: any) => ({ ...v, label: "Near you" }));
-    const nearB = parseElements(elemsB, lat2 ?? lat, lng2 ?? lng).slice(0, 3).map((v: any) => ({ ...v, label: "Near them" }));
-    venues = [...nearA, ...nearB];
+    venues = [...toVenues(a,lat,lng,"Near you").slice(0,3), ...toVenues(b,lat2??lat,lng2??lng,"Near them").slice(0,3)];
   } else {
-    // Users are close: search around their midpoint
-    const midLat = (lat + lat2) / 2;
-    const midLng = (lng + lng2) / 2;
-    // Radius = half the distance between them, minimum 3km
-    const radiusM = Math.max(3000, Math.round(userDistKm * 500));
-    const elems = await overpassQuery(midLat, midLng, radiusM);
-    venues = parseElements(elems, midLat, midLng).slice(0, 6).map((v: any) => ({ ...v, label: "Midpoint" }));
-
-    // If still empty, fall back to near each user
-    if (venues.length === 0) {
-      const [elemsA, elemsB] = await Promise.all([
-        overpassQuery(lat, lng, 3000),
-        overpassQuery(lat2, lng2, 3000),
+    const mid = [(lat+lat2)/2,(lng+lng2)/2];
+    const r = Math.max(3000, distKm*500);
+    const elems = await overpass(`[out:json][timeout:15];(nwr["amenity"~"cafe|fast_food|restaurant"]["name"](around:${r},${mid[0]},${mid[1]});nwr["railway"="station"]["name"](around:${r},${mid[0]},${mid[1]}););out center 30;`);
+    venues = toVenues(elems,mid[0],mid[1],"Midpoint").slice(0,6);
+    if (!venues.length) {
+      const [a,b] = await Promise.all([
+        overpass(`[out:json][timeout:15];(nwr["amenity"~"cafe|fast_food"]["name"](around:3000,${lat},${lng}););out center 15;`),
+        overpass(`[out:json][timeout:15];(nwr["amenity"~"cafe|fast_food"]["name"](around:3000,${lat2},${lng2}););out center 15;`),
       ]);
-      const nearA = parseElements(elemsA, lat, lng).slice(0, 3).map((v: any) => ({ ...v, label: "Near you" }));
-      const nearB = parseElements(elemsB, lat2, lng2).slice(0, 3).map((v: any) => ({ ...v, label: "Near them" }));
-      venues = [...nearA, ...nearB];
+      venues = [...toVenues(a,lat,lng,"Near you").slice(0,3), ...toVenues(b,lat2,lng2,"Near them").slice(0,3)];
     }
   }
 
