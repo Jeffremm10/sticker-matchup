@@ -57,9 +57,20 @@ export default function Auth() {
   const loginAs = async (email: string) => {
     setBusy(true);
     await supabase.auth.signOut();
-    const { error } = await supabase.auth.signInWithPassword({ email, password: TEST_PASSWORD });
-    if (error) {
-      toast.error("Test user not found. Click 'Create test users' first.");
+    const { data, error } = await supabase.functions.invoke("seed-test-users", {
+      body: { action: "login", email },
+    });
+    if (error || !data?.token_hash) {
+      toast.error("Test user not found. Click 'Create / refresh test users' first.");
+      setBusy(false);
+      return;
+    }
+    const { error: vErr } = await supabase.auth.verifyOtp({
+      token_hash: data.token_hash,
+      type: "magiclink",
+    });
+    if (vErr) {
+      toast.error(vErr.message);
       setBusy(false);
       return;
     }
