@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Navigation, MapPin, Handshake, BookOpen, Star, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 type Session = {
   id: string; match_id: string;
@@ -41,6 +41,18 @@ export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: 
   const theyArrived = isUserA ? !!session?.arrived_b  : !!session?.arrived_a;
   const theyComplete = isUserA ? !!session?.complete_b : !!session?.complete_a;
   const done = !!session?.completed;
+
+  // Live clock — re-render every minute to update time-gated buttons
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const meetupTime = new Date(meetup.scheduled_at);
+  const minsUntil = (meetupTime.getTime() - Date.now()) / 60_000;
+  const canHead   = minsUntil <= 120;  // unlock 2h before
+  const canArrive = minsUntil <= 30;   // unlock 30 min before
 
   const setFlag = async (field: string) => {
     if (!session) return;
@@ -114,9 +126,15 @@ export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: 
             <span className={theyHeading ? "text-primary font-bold" : ""}>{otherName} {theyHeading ? "🚶 On the way" : "—"}</span>
           </div>
           {!myHeading && (
-            <Button className="w-full" onClick={() => setFlag(isUserA ? "heading_a" : "heading_b")} disabled={busy}>
-              <Navigation className="w-4 h-4 mr-2"/> I'm Heading There
-            </Button>
+            canHead ? (
+              <Button className="w-full" onClick={() => setFlag(isUserA ? "heading_a" : "heading_b")} disabled={busy}>
+                <Navigation className="w-4 h-4 mr-2"/> I'm Heading There
+              </Button>
+            ) : (
+              <p className="text-xs text-center text-muted-foreground py-1">
+                Available 2 hours before — {formatDistanceToNow(meetupTime, { addSuffix: true })}
+              </p>
+            )
           )}
         </div>
 
@@ -128,9 +146,15 @@ export function SwapDashboard({ session, meetup, matchId, isUserA, otherName }: 
               <span className={theyArrived ? "text-green-600 font-bold" : ""}>{otherName} {theyArrived ? "📍 Arrived" : "—"}</span>
             </div>
             {!myArrived && (
-              <Button variant="outline" className="w-full" onClick={() => setFlag(isUserA ? "arrived_a" : "arrived_b")} disabled={busy}>
-                <MapPin className="w-4 h-4 mr-2"/> I've Arrived
-              </Button>
+              canArrive ? (
+                <Button variant="outline" className="w-full" onClick={() => setFlag(isUserA ? "arrived_a" : "arrived_b")} disabled={busy}>
+                  <MapPin className="w-4 h-4 mr-2"/> I've Arrived
+                </Button>
+              ) : (
+                <p className="text-xs text-center text-muted-foreground py-1">
+                  Available 30 min before — {formatDistanceToNow(meetupTime, { addSuffix: true })}
+                </p>
+              )
             )}
           </div>
         )}
