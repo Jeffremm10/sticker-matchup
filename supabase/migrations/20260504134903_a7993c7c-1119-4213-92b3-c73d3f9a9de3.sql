@@ -1,0 +1,1 @@
+UPDATE public.profiles SET lat=46.0037, lng=8.9511, updated_at=now() WHERE id='c1a99feb-5787-4587-95b7-f9f023f8580b';
