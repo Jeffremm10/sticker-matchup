@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SlotTile } from "./SlotTile";
@@ -6,7 +6,20 @@ import type { InvMap } from "@/hooks/useInventory";
 
 type Sticker = { id: number; code: string; nation: string };
 
-const PER_PAGE = 20;
+type Group = { nation: string; stickers: Sticker[] };
+
+function groupByNation(stickers: Sticker[]): Group[] {
+  const groups: Group[] = [];
+  let current: Group | null = null;
+  for (const s of stickers) {
+    if (!current || current.nation !== s.nation) {
+      current = { nation: s.nation, stickers: [] };
+      groups.push(current);
+    }
+    current.stickers.push(s);
+  }
+  return groups;
+}
 
 export const AlbumBook = ({
   stickers, inventory, onTap,
@@ -15,7 +28,8 @@ export const AlbumBook = ({
   inventory: InvMap;
   onTap: (id: number) => void;
 }) => {
-  const totalPages = Math.max(1, Math.ceil(stickers.length / PER_PAGE));
+  const groups = useMemo(() => groupByNation(stickers), [stickers]);
+  const totalPages = Math.max(1, groups.length);
   const [page, setPage] = useState(0);
   const [dir, setDir] = useState(1);
 
@@ -25,8 +39,9 @@ export const AlbumBook = ({
     setPage(p);
   };
 
-  const slice = stickers.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
-  const nation = slice[0]?.nation ?? "";
+  const group = groups[page] ?? { nation: "", stickers: [] };
+  const slice = group.stickers;
+  const nation = group.nation;
 
   return (
     <div className="flex flex-col gap-3">
