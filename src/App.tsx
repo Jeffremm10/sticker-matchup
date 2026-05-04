@@ -13,6 +13,7 @@ import Matches from "./pages/Matches";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import Swipe from "./pages/Swipe";
+import Meet from "./pages/Meet";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/" element={<Protected><Album /></Protected>} />
             <Route path="/album" element={<Protected><Album /></Protected>} />
             <Route path="/swipe" element={<Protected><Swipe /></Protected>} />
+            <Route path="/meet" element={<Protected><Meet /></Protected>} />
             <Route path="/matches" element={<Protected><Matches /></Protected>} />
             <Route path="/chat/:id" element={<Protected><Chat /></Protected>} />
             <Route path="/profile" element={<Protected><Profile /></Protected>} />
