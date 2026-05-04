@@ -34,6 +34,28 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  // Action: generate a magic link for an existing test user, returned as token_hash
+  // so the client can call verifyOtp() and sign in without email-provider login.
+  let body: any = {};
+  try { body = await req.json(); } catch {}
+  if (body?.action === "login" && typeof body.email === "string") {
+    const email = body.email;
+    if (!TEST_USERS.find((u) => u.email === email)) {
+      return new Response(JSON.stringify({ error: "not a test user" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data, error } = await supabase.auth.admin.generateLink({ type: "magiclink", email });
+    if (error || !data?.properties?.hashed_token) {
+      return new Response(JSON.stringify({ error: error?.message ?? "no token" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ token_hash: data.properties.hashed_token, email }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const allIds = Array.from({ length: 980 }, (_, i) => i + 1);
   const results: any[] = [];
 
