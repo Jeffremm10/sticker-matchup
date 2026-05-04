@@ -32,7 +32,7 @@ export default function Swipe() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const nav = useNavigate();
-  const [matchModal, setMatchModal] = useState<{ name: string; matchId: string } | null>(null);
+  const [matchModal, setMatchModal] = useState<{ name: string; matchId: string; receive: number; give: number } | null>(null);
   const [maxKm, setMaxKm] = useState<number>(0); // 0 = no limit
   const [showLikes, setShowLikes] = useState(false);
 
@@ -88,7 +88,7 @@ export default function Swipe() {
       qc.invalidateQueries({ queryKey: ["likes-received"] });
       x.set(0);
       if (r?.matched) {
-        setMatchModal({ name: top.display_name, matchId: r.match_id });
+        setMatchModal({ name: top.display_name, matchId: r.match_id, receive: top.receive_count, give: top.give_count });
       }
     } catch (e: any) {
       toast.error(e.message);
@@ -183,6 +183,8 @@ export default function Swipe() {
         {matchModal && (
           <MatchCelebration
             name={matchModal.name}
+            receive={matchModal.receive}
+            give={matchModal.give}
             onChat={() => nav(`/chat/${matchModal.matchId}`)}
             onClose={() => setMatchModal(null)}
           />
@@ -249,7 +251,7 @@ export default function Swipe() {
   );
 }
 
-function MatchCelebration({ name, onChat, onClose }: { name: string; onChat: () => void; onClose: () => void }) {
+function MatchCelebration({ name, receive, give, onChat, onClose }: { name: string; receive: number; give: number; onChat: () => void; onClose: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -289,15 +291,22 @@ function MatchCelebration({ name, onChat, onClose }: { name: string; onChat: () 
         </div>
 
         <div className="p-6 text-center space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-bold">It's a trade</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-bold">It's a Match</p>
           <h2 className="text-3xl font-black">You & {name}</h2>
-          <p className="text-sm text-muted-foreground">
-            You both want what the other has. Start chatting to arrange the swap.
-          </p>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-get/15 rounded-xl p-2 text-center">
+              <div className="text-2xl font-black text-get">+{receive}</div>
+              <div className="text-xs text-muted-foreground">stickers you need</div>
+            </div>
+            <div className="bg-give/15 rounded-xl p-2 text-center">
+              <div className="text-2xl font-black text-give">−{give}</div>
+              <div className="text-xs text-muted-foreground">stickers you can give</div>
+            </div>
+          </div>
 
-          <div className="flex flex-col gap-2 pt-4">
+          <div className="flex flex-col gap-2 pt-2">
             <Button size="lg" className="w-full bg-primary text-primary-foreground font-bold" onClick={onChat}>
-              Send a message
+              Say Hello 👋
             </Button>
             <Button variant="ghost" className="w-full" onClick={onClose}>
               Keep swiping
