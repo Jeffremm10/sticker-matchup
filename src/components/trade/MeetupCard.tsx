@@ -25,41 +25,34 @@ function haversineKm(a: [number, number], b: [number, number]) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-async function fetchSuggestionsNear(lat: number, lng: number): Promise<Venue[]> {
-  // Single Overpass query: cafes, malls, train stations within 3km
-  const query = `
-    [out:json][timeout:15];
-    (
-      node["amenity"~"cafe|fast_food"]["name"](around:3000,${lat},${lng});
-      node["shop"~"mall|department_store"]["name"](around:3000,${lat},${lng});
-      node["public_transport"~"station|stop_area"]["name"](around:3000,${lat},${lng});
-      node["railway"="station"]["name"](around:3000,${lat},${lng});
-    );
-    out 30;
-  `;
+async function fetchSuggestionsNear(lat: number, lng: number, signal: AbortSignal): Promise<Venue[]> {
+  // nwr = node/way/relation; out center gives lat/lng for non-node elements
+  const query = `[out:json][timeout:15];(nwr["amenity"="cafe"]["name"](around:3000,${lat},${lng});nwr["amenity"="fast_food"]["name"](around:3000,${lat},${lng});nwr["shop"="mall"]["name"](around:3000,${lat},${lng});nwr["railway"="station"]["name"](around:3000,${lat},${lng});nwr["amenity"="pub"]["name"](around:3000,${lat},${lng}););out center 40;`;
   const res = await fetch("https://overpass-api.de/api/interpreter", {
     method: "POST",
     body: "data=" + encodeURIComponent(query),
-    signal: AbortSignal.timeout(15000),
+    signal,
   });
+  if (!res.ok) throw new Error(`Overpass ${res.status}`);
   const json = await res.json();
   const elements: any[] = json.elements ?? [];
 
-  // Score each result: named chains score higher, closer = better
-  const results = elements
+  return elements
     .filter((el) => el.tags?.name)
     .map((el) => {
+      // nodes have el.lat/lon; ways/relations have el.center.lat/lon
+      const elLat: number = el.lat ?? el.center?.lat;
+      const elLng: number = el.lon ?? el.center?.lon;
+      if (!elLat || !elLng) return null;
       const name: string = el.tags.name;
-      const elLat = el.lat, elLng = el.lon;
       const dist = haversineKm([lat, lng], [elLat, elLng]);
-      const type = el.tags.amenity ? (el.tags.shop ? "mall" : "coffee_shop") : "transit_hub";
+      const type = el.tags.railway ? "transit_hub" : el.tags.shop ? "mall" : "coffee_shop";
       const address = [el.tags["addr:street"], el.tags["addr:housenumber"]].filter(Boolean).join(" ") || null;
       return { name, lat: elLat, lng: elLng, type, address, dist };
     })
-    .sort((a, b) => a.dist - b.dist)
-    .slice(0, 5);
-
-  return results;
+    .filter(Boolean)
+    .sort((a: any, b: any) => a.dist - b.dist)
+    .slice(0, 5) as Venue[];
 }
 
 type SelectorProps = {
@@ -88,16 +81,21 @@ export function MeetupSelector({ open, onOpenChange, matchId, myId, myProfile, o
       ? [myProfile.lat, myProfile.lng]
       : null;
 
-  // Fetch from Overpass when sheet opens
+  // Fetch from Overpass when sheet opens (or when midpoint becomes available)
   useEffect(() => {
     if (!open || !midpoint) return;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
     setLoadingSuggestions(true);
     setLiveSuggestions([]);
-    fetchSuggestionsNear(midpoint[0], midpoint[1])
+    fetchSuggestionsNear(midpoint[0], midpoint[1], ctrl.signal)
       .then(setLiveSuggestions)
-      .catch(() => {/* Overpass timeout — fall back to DB venues silently */})
-      .finally(() => setLoadingSuggestions(false));
-  }, [open]); // eslint-disable-line
+      .catch((e) => {
+        if (!ctrl.signal.aborted) toast.error("Couldn't load nearby spots — type a custom location below.");
+      })
+      .finally(() => { clearTimeout(timer); setLoadingSuggestions(false); });
+    return () => { ctrl.abort(); clearTimeout(timer); };
+  }, [open, midpoint?.[0], midpoint?.[1]]); // eslint-disable-line
 
   // Merge: live Overpass results first, then DB cache as fallback
   const suggestions = liveSuggestions.length > 0
