@@ -155,33 +155,17 @@ export default function Swipe() {
     <AppShell>
       <header className="p-4 flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-black">Sticker Swapper</h1>
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <h1 className="text-xl font-black flex items-center gap-2">
+            Sticker Swapper
+            {isPremium && <Crown className="w-4 h-4 text-amber-500"/>}
+          </h1>
+          <p className="text-xs text-muted-foreground">
             {maxKm > 0 ? `Within ${maxKm} km` : "Anywhere"}
-            <span className="opacity-50">·</span>
-            {isPremium ? (
-              <span className="inline-flex items-center gap-1 font-bold text-amber-500">
-                <Crown className="w-3 h-3"/> Unlimited
-              </span>
-            ) : (
-              <span className={`font-bold ${(swipesLeft?.remaining ?? 20) <= 5 ? "text-need" : ""}`}>
-                {swipesLeft?.remaining ?? 20}/20 swipes left
-              </span>
-            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {!isPremium && (
-            <Button
-              size="sm"
-              onClick={() => showPaywall("lifetime_pass_1499")}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black border-0 hover:opacity-90"
-            >
-              <Crown className="w-4 h-4 mr-1"/> Go Lifetime
-            </Button>
-          )}
           <Button variant="outline" size="sm" onClick={onNudge} className="relative">
-            <Compass className="w-4 h-4 mr-1 text-violet-500" /> Nudge
+            <Compass className="w-4 h-4 text-violet-500" />
             {(me?.nudge_count ?? 0) > 0 && (
               <span className="absolute -top-1 -right-1 bg-violet-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
                 {me.nudge_count}
@@ -216,6 +200,17 @@ export default function Swipe() {
                     </Button>
                   ))}
                 </div>
+                {!isPremium && (
+                  <button
+                    onClick={() => showPaywall("lifetime_pass_1499")}
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400">
+                      <Crown className="w-4 h-4"/> Lifetime Pass
+                    </div>
+                    <span className="text-xs text-muted-foreground">Unlimited swipes &amp; more →</span>
+                  </button>
+                )}
               </div>
             </SheetContent>
           </Sheet>
