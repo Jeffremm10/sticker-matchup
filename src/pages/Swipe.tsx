@@ -46,6 +46,16 @@ export default function Swipe() {
     queryFn: async () => (await supabase.from("profiles").select("*").eq("id", user!.id).maybeSingle()).data,
   });
 
+  const { data: swipesLeft } = useQuery({
+    enabled: !!user, queryKey: ["swipes-remaining", user?.id, me?.tier],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("get_swipes_remaining" as any);
+      return (data as any)?.[0] as { remaining: number; unlimited: boolean } | undefined;
+    },
+    refetchInterval: 30_000,
+  });
+  const isPremium = me?.tier === "premium" || me?.is_pro;
+
   const { data: stickers = [] } = useQuery({
     queryKey: ["stickers-lite"],
     queryFn: async () => (await supabase.from("stickers").select("id,code,nation").limit(1100)).data ?? [],
@@ -146,9 +156,30 @@ export default function Swipe() {
       <header className="p-4 flex items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-black">Sticker Swapper</h1>
-          <p className="text-xs text-muted-foreground">{maxKm > 0 ? `Within ${maxKm} km` : "Anywhere"}</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            {maxKm > 0 ? `Within ${maxKm} km` : "Anywhere"}
+            <span className="opacity-50">·</span>
+            {isPremium ? (
+              <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                <Crown className="w-3 h-3"/> Unlimited
+              </span>
+            ) : (
+              <span className={`font-bold ${(swipesLeft?.remaining ?? 20) <= 5 ? "text-need" : ""}`}>
+                {swipesLeft?.remaining ?? 20}/20 swipes left
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          {!isPremium && (
+            <Button
+              size="sm"
+              onClick={() => showPaywall("lifetime_pass_1499")}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black border-0 hover:opacity-90"
+            >
+              <Crown className="w-4 h-4 mr-1"/> Go Lifetime
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onNudge} className="relative">
             <Compass className="w-4 h-4 mr-1 text-violet-500" /> Nudge
             {(me?.nudge_count ?? 0) > 0 && (
