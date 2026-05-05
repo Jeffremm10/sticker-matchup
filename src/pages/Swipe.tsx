@@ -7,11 +7,13 @@ import { AppShell } from "@/components/AppShell";
 import { SlotTile } from "@/components/album/SlotTile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, X, MapPin, Trophy, Sparkles, Lock, Eye, SlidersHorizontal, ArrowLeftRight, ThumbsUp } from "lucide-react";
+import { Heart, X, MapPin, Trophy, Sparkles, Lock, Eye, SlidersHorizontal, ArrowLeftRight, ThumbsUp, Zap, Compass } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { usePaywall } from "@/providers/PaywallProvider";
+import { SuperSwapModal } from "@/components/trade/SuperSwapModal";
 
 type Candidate = {
   user_id: string; display_name: string; bio: string;
@@ -33,9 +35,11 @@ export default function Swipe() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const nav = useNavigate();
+  const { showPaywall } = usePaywall();
   const [matchModal, setMatchModal] = useState<{ name: string; matchId: string; receive: number; give: number } | null>(null);
   const [maxKm, setMaxKm] = useState<number>(0); // 0 = no limit
   const [showLikes, setShowLikes] = useState(false);
+  const [superSwapTarget, setSuperSwapTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: me } = useQuery({
     enabled: !!user, queryKey: ["profile", user?.id],
@@ -49,11 +53,12 @@ export default function Swipe() {
   const stickerMap = new Map(stickers.map((s:any) => [s.id, s]));
 
   const { data: deck = [], isLoading } = useQuery({
-    enabled: !!user, queryKey: ["deck", maxKm],
+    enabled: !!user, queryKey: ["deck", maxKm, !!me?.is_final_10_active],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_potential_matches", {
         _limit: 20,
         _max_km: maxKm > 0 ? maxKm : null,
+        _final_10: !!me?.is_final_10_active,
       } as any);
       if (error) throw error;
       const candidates = (data ?? []) as Candidate[];
@@ -99,12 +104,15 @@ export default function Swipe() {
     try {
       const { data, error } = await supabase.rpc("record_swipe", { _receiver: top.user_id, _direction: direction });
       if (error) {
-        if (error.message.includes("daily_limit")) toast.error("Daily limit reached. Upgrade to Pro!");
+        if (error.message.includes("daily_limit")) {
+          toast.error("Daily limit reached");
+          showPaywall("lifetime_pass_1499");
+        }
         else toast.error(error.message);
         return;
       }
       const r = (data as any)?.[0];
-      qc.setQueryData(["deck", maxKm], (old: Candidate[] = []) => old.slice(1));
+      qc.setQueryData(["deck", maxKm, !!me?.is_final_10_active], (old: Candidate[] = []) => old.slice(1));
       qc.invalidateQueries({ queryKey: ["likes-received"] });
       x.set(0);
       if (r?.matched) {
@@ -113,6 +121,22 @@ export default function Swipe() {
     } catch (e: any) {
       toast.error(e.message);
     }
+  };
+
+  const onNudge = async () => {
+    if ((me?.nudge_count ?? 0) <= 0) {
+      showPaywall("nudge_299");
+      return;
+    }
+    const { data, error } = await supabase.rpc("consume_nudge" as any);
+    if (error) {
+      toast.error(error.message === "no_nudges" ? "No nudges left" : error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+    qc.invalidateQueries({ queryKey: ["deck"] });
+    const r: any = (data as any)?.[0];
+    toast.success(r?.display_name ? `Top match: ${r.display_name} (+${r.receive_count} for you)` : "Nudge used");
   };
 
   if (isLoading) return <AppShell><div className="p-8 text-center">Loading deck…</div></AppShell>;
@@ -125,6 +149,14 @@ export default function Swipe() {
           <p className="text-xs text-muted-foreground">{maxKm > 0 ? `Within ${maxKm} km` : "Anywhere"}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onNudge} className="relative">
+            <Compass className="w-4 h-4 mr-1 text-violet-500" /> Nudge
+            {(me?.nudge_count ?? 0) > 0 && (
+              <span className="absolute -top-1 -right-1 bg-violet-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
+                {me.nudge_count}
+              </span>
+            )}
+          </Button>
           <Button variant="outline" size="sm" className="relative" onClick={() => setShowLikes(true)}>
             <Eye className="w-4 h-4 mr-1"/> Likes
             {likesYou.length > 0 && (
@@ -175,6 +207,21 @@ export default function Swipe() {
                 className="absolute inset-0"
               >
                 <CardView c={top} me={me} stickerMap={stickerMap} likeOpacity={likeOpacity} nopeOpacity={nopeOpacity}/>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if ((me?.super_swap_count ?? 0) > 0) {
+                      setSuperSwapTarget({ id: top.user_id, name: top.display_name });
+                    } else {
+                      showPaywall("super_swap_3pk_299");
+                    }
+                  }}
+                  className="absolute top-3 right-3 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-full p-2 shadow-lg flex items-center gap-1 z-10"
+                  aria-label="Super Swap"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span className="text-[10px] font-black pr-1">{me?.super_swap_count ?? 0}</span>
+                </button>
               </motion.div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-card rounded-2xl border border-border">
@@ -267,6 +314,15 @@ export default function Swipe() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {superSwapTarget && (
+        <SuperSwapModal
+          open={!!superSwapTarget}
+          onOpenChange={(o) => !o && setSuperSwapTarget(null)}
+          receiverId={superSwapTarget.id}
+          receiverName={superSwapTarget.name}
+        />
+      )}
     </AppShell>
   );
 }
