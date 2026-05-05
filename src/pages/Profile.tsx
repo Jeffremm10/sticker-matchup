@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { LogOut, MapPin, Trophy, Star, Handshake, ThumbsUp } from "lucide-react";
+import { ProgressDashboard } from "@/components/profile/ProgressDashboard";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -90,6 +91,8 @@ export default function Profile() {
             Based on {profile?.rating_count} rating{profile?.rating_count !== 1 ? "s" : ""}
           </p>
         )}
+
+        <ProgressDashboard profile={profile} />
 
         <div><Label>Display name</Label><Input value={name} onChange={e=>setName(e.target.value)}/></div>
         <div><Label>Bio</Label><Textarea value={bio} onChange={e=>setBio(e.target.value)} rows={2}/></div>

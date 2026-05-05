@@ -16,6 +16,7 @@ import Swipe from "./pages/Swipe";
 import Meet from "./pages/Meet";
 import NotFound from "./pages/NotFound";
 import { MessageNotifications } from "./hooks/useMessageNotifications";
+import { PaywallProvider } from "./providers/PaywallProvider";
 
 const queryClient = new QueryClient();
 
@@ -36,8 +37,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <MessageNotifications />
-          <Routes>
+          <PaywallProvider>
+            <MessageNotifications />
+            <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding/username" element={<Protected requireUsername={false}><OnboardingUsername /></Protected>} />
             <Route path="/onboarding/location" element={<Protected requireUsername={false}><OnboardingLocation /></Protected>} />
@@ -49,7 +51,8 @@ const App = () => (
             <Route path="/chat/:id" element={<Protected><Chat /></Protected>} />
             <Route path="/profile" element={<Protected><Profile /></Protected>} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </PaywallProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
