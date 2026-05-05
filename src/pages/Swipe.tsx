@@ -7,7 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { SlotTile } from "@/components/album/SlotTile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, X, MapPin, Trophy, Sparkles, Lock, Eye, SlidersHorizontal, ArrowLeftRight, ThumbsUp, Zap, Compass } from "lucide-react";
+import { Heart, X, MapPin, Trophy, Sparkles, Lock, Eye, SlidersHorizontal, ArrowLeftRight, ThumbsUp, Zap, Compass, Crown } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
