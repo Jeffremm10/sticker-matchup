@@ -9,13 +9,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { configureIAP, getOfferings, purchase, restorePurchases, isNative } from "@/lib/iap";
 
 export type ProductId =
-  | "lifetime_pass_1499"
-  | "nudge_299"
-  | "super_swap_3pk_299"
-  | "final_10_499";
+  | "lifetime_pass"
+  | "nudge"
+  | "super_swipe"
+  | "final_10";
 
 const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string[]; price: string; icon: any; color: string }> = {
-  lifetime_pass_1499: {
+  lifetime_pass: {
     title: "SwapStrat Lifetime Pass",
     subtitle: "One payment. Forever.",
     bullets: ["Unlimited swipes", "See who likes you", "Priority placement (3× boost)", "PRO badge"],
@@ -23,7 +23,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
     icon: Crown,
     color: "from-amber-500 to-orange-500",
   },
-  super_swap_3pk_299: {
+  super_swipe: {
     title: "Super Swaps · 3-pack",
     subtitle: "Skip the swipe queue",
     bullets: ["Send a direct message — no match needed", "3 Super Swaps", "Stand out from the crowd"],
@@ -31,7 +31,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
     icon: Zap,
     color: "from-blue-500 to-cyan-500",
   },
-  nudge_299: {
+  nudge: {
     title: "Nudge · Find a top match",
     subtitle: "Algorithm picks one for you",
     bullets: ["Reveal a hand-picked collector nearby", "Filtered for ≥5 stickers you need", "1 use"],
@@ -39,7 +39,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
     icon: Compass,
     color: "from-violet-500 to-fuchsia-500",
   },
-  final_10_499: {
+  final_10: {
     title: "Final 10 Insurance",
     subtitle: "Finish the album",
     bullets: ["Match only with collectors who hold your last cards", "Priority distribution worldwide", "Until you complete"],
@@ -115,7 +115,7 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
     const r = await restorePurchases();
     setBusy(false);
     if (r.ok) {
-      await supabase.functions.invoke("verify-purchase", { body: { product_id: "lifetime_pass_1499" } });
+      await supabase.functions.invoke("verify-purchase", { body: { product_id: "lifetime_pass" } });
       qc.invalidateQueries({ queryKey: ["profile", user?.id] });
       toast.success("Restored");
     } else if ("webBlocked" in r && r.webBlocked) {

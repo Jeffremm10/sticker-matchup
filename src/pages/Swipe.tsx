@@ -116,7 +116,7 @@ export default function Swipe() {
       if (error) {
         if (error.message.includes("daily_limit")) {
           toast.error("Daily limit reached");
-          showPaywall("lifetime_pass_1499");
+          showPaywall("lifetime_pass");
         }
         else toast.error(error.message);
         return;
@@ -135,7 +135,7 @@ export default function Swipe() {
 
   const onNudge = async () => {
     if ((me?.nudge_count ?? 0) <= 0) {
-      showPaywall("nudge_299");
+      showPaywall("nudge");
       return;
     }
     const { data, error } = await supabase.rpc("consume_nudge" as any);
@@ -210,7 +210,7 @@ export default function Swipe() {
       {top && (
         <div className="px-4 pb-2">
           <button
-            onClick={() => showPaywall("lifetime_pass_1499")}
+            onClick={() => showPaywall("lifetime_pass")}
             className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:opacity-90 transition-opacity"
           >
             <div className="flex items-center gap-2">
@@ -262,7 +262,7 @@ export default function Swipe() {
                 if ((me?.super_swap_count ?? 0) > 0) {
                   setSuperSwapTarget({ id: top.user_id, name: top.display_name });
                 } else {
-                  showPaywall("super_swap_3pk_299");
+                  showPaywall("super_swipe");
                 }
               }}
               className="relative rounded-full w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity"

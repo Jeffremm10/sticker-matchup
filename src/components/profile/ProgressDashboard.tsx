@@ -56,7 +56,7 @@ export function ProgressDashboard({ profile }: { profile: any }) {
           <Button
             size="lg"
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black"
-            onClick={() => showPaywall("final_10_499")}
+            onClick={() => showPaywall("final_10")}
           >
             <Trophy className="w-4 h-4 mr-2" /> Activate Final 10 Insurance
           </Button>
@@ -70,7 +70,7 @@ export function ProgressDashboard({ profile }: { profile: any }) {
       <div className="grid grid-cols-2 gap-2">
         <button
           className="bg-card border border-border rounded-xl p-3 text-left hover:bg-secondary transition"
-          onClick={() => showPaywall("super_swap_3pk_299")}
+          onClick={() => showPaywall("super_swipe")}
         >
           <div className="flex items-center justify-between">
             <Zap className="w-4 h-4 text-blue-500" />
@@ -81,7 +81,7 @@ export function ProgressDashboard({ profile }: { profile: any }) {
         </button>
         <button
           className="bg-card border border-border rounded-xl p-3 text-left hover:bg-secondary transition"
-          onClick={() => showPaywall("nudge_299")}
+          onClick={() => showPaywall("nudge")}
         >
           <div className="flex items-center justify-between">
             <Compass className="w-4 h-4 text-violet-500" />
@@ -96,7 +96,7 @@ export function ProgressDashboard({ profile }: { profile: any }) {
         <Button
           variant="outline"
           className="w-full border-amber-500/40 text-amber-700 dark:text-amber-300"
-          onClick={() => showPaywall("lifetime_pass_1499")}
+          onClick={() => showPaywall("lifetime_pass")}
         >
           <Crown className="w-4 h-4 mr-2" /> Get the Lifetime Pass
         </Button>

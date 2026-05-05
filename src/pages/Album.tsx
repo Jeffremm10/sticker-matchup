@@ -45,7 +45,7 @@ export default function Album() {
       !sessionStorage.getItem("final10_prompted")
     ) {
       sessionStorage.setItem("final10_prompted", "1");
-      setTimeout(() => showPaywall("final_10_499"), 600);
+      setTimeout(() => showPaywall("final_10"), 600);
     }
   }, [profile, stats.owned, stats.total, showPaywall]);
 
