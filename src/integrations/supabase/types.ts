@@ -667,6 +667,13 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_swipes_remaining: {
+        Args: never
+        Returns: {
+          remaining: number
+          unlimited: boolean
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
