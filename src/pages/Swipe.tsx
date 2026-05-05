@@ -266,17 +266,20 @@ export default function Swipe() {
           </div>
         )}
 
-        {/* Upgrade strip */}
+        {/* Upgrade banner */}
         {top && (
           <button
             onClick={() => showPaywall("lifetime_pass_1499")}
-            className="mt-4 w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
+            className="mt-4 w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg hover:opacity-90 transition-opacity"
           >
             <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-amber-500"/>
-              <span className="text-sm font-bold text-amber-600 dark:text-amber-400">Lifetime Pass</span>
+              <Crown className="w-5 h-5"/>
+              <div className="text-left">
+                <div className="text-sm font-black leading-none">Lifetime Pass</div>
+                <div className="text-[11px] opacity-80 mt-0.5">Unlimited swipes forever</div>
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground">Unlimited swipes →</span>
+            <span className="text-sm font-black">→</span>
           </button>
         )}
       </div>
