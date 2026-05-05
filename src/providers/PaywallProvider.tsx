@@ -98,12 +98,12 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
         toast.success("Purchase complete 🎉");
         qc.invalidateQueries({ queryKey: ["profile", user.id] });
         setOpen(false);
-      } else if (r.cancelled) {
+      } else if ("cancelled" in r && r.cancelled) {
         // user cancelled, no toast
-      } else if (r.webBlocked) {
+      } else if ("webBlocked" in r && r.webBlocked) {
         toast.error("Purchases happen in the SwapStrat mobile app");
       } else {
-        toast.error(r.error ?? "Purchase failed");
+        toast.error(("error" in r && r.error) || "Purchase failed");
       }
     } finally {
       setBusy(false);
@@ -118,10 +118,10 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
       await supabase.functions.invoke("verify-purchase", { body: { product_id: "lifetime_pass_1499" } });
       qc.invalidateQueries({ queryKey: ["profile", user?.id] });
       toast.success("Restored");
-    } else if (r.webBlocked) {
+    } else if ("webBlocked" in r && r.webBlocked) {
       toast.error("Restore happens in the mobile app");
     } else {
-      toast.error(r.error ?? "Nothing to restore");
+      toast.error(("error" in r && r.error) || "Nothing to restore");
     }
   };
 

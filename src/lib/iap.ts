@@ -15,12 +15,18 @@ let nativeAvailable: boolean | null = null;
 async function getNative(): Promise<any | null> {
   if (nativeAvailable === false) return null;
   try {
-    const cap = (await import(/* @vite-ignore */ "@capacitor/core")).Capacitor;
+    // String-literal dynamic imports kept opaque to TS — these packages are only
+    // present in the Capacitor native build, not in the Vite web bundle.
+    const capName = "@capacitor/core";
+    const rcName = "@revenuecat/purchases-capacitor";
+    // @ts-ignore - resolved at runtime in native build only
+    const cap = (await import(/* @vite-ignore */ capName)).Capacitor;
     if (!cap?.isNativePlatform?.()) {
       nativeAvailable = false;
       return null;
     }
-    const mod: any = await import(/* @vite-ignore */ "@revenuecat/purchases-capacitor");
+    // @ts-ignore - resolved at runtime in native build only
+    const mod: any = await import(/* @vite-ignore */ rcName);
     nativeAvailable = true;
     return { Purchases: mod.Purchases, platform: cap.getPlatform() };
   } catch {
