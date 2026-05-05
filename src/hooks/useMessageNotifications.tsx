@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Zap } from "lucide-react";
+import { createElement } from "react";
 
 export function useMessageNotifications() {
   const { user } = useAuth();
@@ -43,6 +45,23 @@ export function useMessageNotifications() {
         if (!matchIdsRef.current.has(s.match_id)) return;
         if (loc.pathname === `/chat/${s.match_id}`) return;
         toast("📍 Meetup proposed", { description: s.venue_name, action: { label: "View", onClick: () => nav(`/chat/${s.match_id}`) } });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "super_swap_messages" }, async (payload) => {
+        const m: any = payload.new;
+        if (m.receiver_id !== user.id) return;
+        let name = profilesRef.current.get(m.sender_id);
+        if (!name) {
+          const { data } = await supabase.from("profiles").select("display_name").eq("id", m.sender_id).maybeSingle();
+          name = data?.display_name ?? "Someone";
+        }
+        toast(createElement("span", { className: "flex items-center gap-1 font-bold" },
+          createElement(Zap, { className: "w-4 h-4 text-blue-500" }),
+          `Super Swap from ${name}`
+        ), {
+          description: m.body,
+          duration: 8000,
+          action: { label: "Open", onClick: () => nav("/matches") },
+        });
       })
       .subscribe();
 

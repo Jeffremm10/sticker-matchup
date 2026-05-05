@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -10,6 +10,7 @@ import { useInventory } from "@/hooks/useInventory";
 import { LayoutGrid, BookOpen, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/useProfile";
+import { usePaywall } from "@/providers/PaywallProvider";
 
 type Sticker = { id: number; code: string; nation: string };
 
@@ -17,6 +18,7 @@ export default function Album() {
   const [view, setView] = useState<"book" | "grid">("book");
   const { data: profile } = useProfile();
   const { inventory, cycle, set } = useInventory();
+  const { showPaywall } = usePaywall();
 
   const { data: stickers = [] } = useQuery({
     queryKey: ["stickers", "v3-tournament-980"],
@@ -32,6 +34,20 @@ export default function Album() {
     inventory.forEach((s) => { if (s === "owned") owned++; else dup++; });
     return { owned, dup, total: stickers.length };
   }, [inventory, stickers.length]);
+
+  // Auto-open Final 10 paywall once per session when user reaches threshold
+  useEffect(() => {
+    if (!profile || stats.total === 0) return;
+    const threshold = stats.total - 10;
+    if (
+      stats.owned >= threshold &&
+      !profile.is_final_10_active &&
+      !sessionStorage.getItem("final10_prompted")
+    ) {
+      sessionStorage.setItem("final10_prompted", "1");
+      setTimeout(() => showPaywall("final_10_499"), 600);
+    }
+  }, [profile, stats.owned, stats.total, showPaywall]);
 
   return (
     <AppShell>
