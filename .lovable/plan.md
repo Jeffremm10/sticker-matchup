@@ -1,89 +1,122 @@
-# Swap26 — Onboarding & Album Module
 
-## Heads-up: conflict with prior decisions
-The earlier MVP was built around **980 stickers**, statuses **`need` / `duplicate`**, and **email + Google** auth. This new brief specifies **650 stickers**, statuses **`owned` / `duplicate`**, and **Google-only** auth. Plan below follows the **new** brief and migrates the existing data/code accordingly. If you'd rather keep 980 / `need`+`duplicate`, say so and I'll adjust before implementing.
+# Monetization System: Lifetime Pass + Micro-transactions (RevenueCat)
 
-## 1. Theme refresh
-- Switch palette in `src/index.css` to dark sports look:
-  - background near-black, surfaces dark slate
-  - primary = grass green `#4ADE80`
-  - accent (duplicate) = gold `#FACC15`
-  - owned = green glow ring, duplicate = gold ring + `+` badge
-- Update `tailwind.config.ts` tokens (`owned`, `duplicate`, `accent`).
+Native IAPs via RevenueCat (App Store + Google Play). Web build will show a "Available in the mobile app" notice for paid CTAs (RevenueCat purchases require native iOS/Android — the current Vite/React app runs in the browser).
 
-## 2. Database changes (migration)
-- `profiles`: add `username text unique not null` (backfill existing rows from `display_name`, then add unique index + not-null). Keep existing columns.
-- `user_inventory` (new, replaces `user_stickers`):
-  - `user_id uuid`, `sticker_id int`, `status text check in ('owned','duplicate')`, `updated_at timestamptz`
-  - PK `(user_id, sticker_id)`; RLS: user can CRUD own rows, read own rows only.
-- Reseed `stickers` to **650** rows (clear existing 980, insert 1–650 with generic codes like `ARG 10`; keep nation grouping for the Grid View labels but IDs are 1–650).
-- Update `get_potential_matches` and `record_swipe` RPCs to read from `user_inventory` and the new statuses (`owned`→`need` equivalent for swap math: a user "needs" any sticker NOT marked owned/duplicate; "duplicate" stays the same). Confirm in implementation.
-- Drop `user_stickers` after migration.
+## 1. Database changes (migration)
 
-## 3. Auth — Google only
-- Strip email/password tabs from `src/pages/Auth.tsx`. Single "Continue with Google" button via `lovable.auth.signInWithOAuth("google", …)`.
-- After sign-in, route to `/onboarding/username` if profile lacks a username, otherwise `/album`.
+**`profiles`** — add columns:
+- `tier text not null default 'free'` — `'free' | 'premium'` (premium = Lifetime Pass owner)
+- `super_swap_count int not null default 0`
+- `is_final_10_active boolean not null default false`
+- `nudge_count int not null default 0` (each Nudge purchase = 1 use)
+- `visibility_boost int not null default 0` (3 for premium, 0 otherwise — set by webhook)
 
-## 4. Username step
-- New page `src/pages/OnboardingUsername.tsx`.
-- Input with live availability check (debounced query against `profiles.username`), zod validation (3–20 chars, alphanumeric + `_`).
-- On submit: `update profiles set username = …` then redirect `/album`.
-- Add `RequireUsername` guard wrapping app routes.
+**`transactions`** (new):
+- `id uuid pk`, `user_id uuid`, `product_id text`, `platform text` (`ios`|`android`), `revenuecat_event_id text unique`, `original_transaction_id text`, `price_cents int`, `currency text`, `purchased_at timestamptz`, `raw jsonb`, `created_at`
+- RLS: user can SELECT own rows; INSERT only via service role (edge function).
+- Product IDs: `lifetime_pass_1499`, `nudge_299`, `super_swap_3pk_299`, `final_10_499`.
 
-## 5. Album module (Phase 2)
+**`super_swap_messages`** (new) — direct messages sent without a match:
+- `id`, `sender_id`, `receiver_id`, `body text`, `created_at`, `read_at`
+- RLS: sender or receiver can SELECT; INSERT only via `send_super_swap` RPC (which decrements counter atomically).
 
-### Routes & nav
-- Bottom nav reduced to 3 tabs: **Album** (active), **Swipe**, **Chat** (placeholders for Swipe/Chat keep existing pages).
-- New route `/album` = default landing.
+**RPC `send_super_swap(_receiver uuid, _body text)`** (SECURITY DEFINER):
+- Verify `super_swap_count > 0`, decrement, insert message, return new count. Raises `no_super_swaps` otherwise.
 
-### Book View (`AlbumBook.tsx`)
-- Framer Motion horizontal page flip. 20 stickers per page → 33 pages (650/20, last page 10 slots).
-- Swipe left/right gesture + page indicator dots + prev/next chevrons.
-- Each page renders a 4×5 grid of slot tiles.
+**RPC `consume_nudge()`** (SECURITY DEFINER):
+- Decrements `nudge_count`, returns one top-compatibility nearby user (≥5 stickers the caller needs), excluding existing matches/swipes.
 
-### Slot tile interaction
-- Tap cycles: none → owned (green glow) → duplicate (gold + `+` badge) → none.
-- Optimistic update via TanStack Query mutation; rollback on error.
+**Update `get_potential_matches`**:
+- Add ordering: `ORDER BY (tier='premium')::int DESC, p.visibility_boost DESC, (compatibility) DESC, distance ASC`.
+- Add optional `_final_10 boolean` param. When true: filter to candidates whose inventory contains ANY of caller's missing stickers (strict intersection on wishlist), and ignore distance ordering.
 
-### Grid View toggle
-- Top-of-screen switch: **Book ⇄ Grid**.
-- Grid View renders all 650 as small squares in one scrollable screen, virtualized with `@tanstack/react-virtual` (windowed rows of e.g. 8 columns) to stay smooth on mobile.
+**Trigger `bump_wishlist_count`** on `user_inventory`: maintain `profiles.wishlist_count` (= total stickers − owned).
 
-### Quick Entry Keypad (FAB)
-- Floating action button bottom-right with keypad icon.
-- Opens a bottom sheet with large 0–9 pad, backspace, and a live preview ("Sticker 502 — ARG 10 ✓ owned").
-- Two action buttons: **+ Add to Album** (sets owned), **+ Add Duplicate** (sets duplicate).
-- After action: input clears, sheet stays open, focus retained → rapid fire.
-- Validates 1–650; shows inline error otherwise.
+## 2. RevenueCat integration
 
-### State / sync
-- TanStack Query: `useInventory()` returns a `Map<sticker_id, status>`. Mutations call `upsert` / `delete` on `user_inventory` and optimistically patch the cache.
-- Realtime subscription on `user_inventory` for the current user so multi-device stays in sync.
+**Setup the user must do in RevenueCat dashboard** (documented in chat, not code):
+1. Create app + iOS/Android apps in App Store Connect / Play Console with the 4 product IDs above (3 non-consumable: lifetime_pass, nudge, final_10; 1 consumable: super_swap_3pk).
+2. Add products in RevenueCat → create entitlements: `premium`, `final_10`. Attach `nudge_299` and `super_swap_3pk_299` as non-entitlement products.
+3. Get **RevenueCat Public SDK keys** (iOS + Android) and **REST API secret key** + **Webhook auth header**.
 
-## 6. Files to add / change
+**Secrets to add via add_secret**:
+- `REVENUECAT_WEBHOOK_AUTH` (shared secret to verify webhooks)
+- `REVENUECAT_REST_API_KEY` (server-side verification fallback)
+- Public SDK keys go in client `.env` as `VITE_REVENUECAT_IOS_KEY`, `VITE_REVENUECAT_ANDROID_KEY` (safe to expose).
 
-```text
-add:    src/pages/OnboardingUsername.tsx
-add:    src/pages/Album.tsx
-add:    src/components/album/AlbumBook.tsx
-add:    src/components/album/AlbumGrid.tsx
-add:    src/components/album/SlotTile.tsx
-add:    src/components/album/QuickEntryKeypad.tsx
-add:    src/hooks/useInventory.ts
-add:    src/hooks/useProfile.ts
-edit:   src/App.tsx                 # routes + guards
-edit:   src/pages/Auth.tsx          # Google only
-edit:   src/components/BottomNav.tsx# 3 tabs
-edit:   src/index.css               # dark palette
-edit:   tailwind.config.ts          # owned/duplicate tokens
-edit:   src/pages/Collection.tsx    # remove or redirect to /album
-edit:   src/pages/Swipe.tsx         # adapt to user_inventory
-migrate: profiles.username, user_inventory table, reseed stickers→650, update RPCs
-```
+**Edge function `revenuecat-webhook`** (`verify_jwt = false`, validates `Authorization` header against `REVENUECAT_WEBHOOK_AUTH`):
+- Parses event, idempotently inserts into `transactions` keyed by `event.id`.
+- On `INITIAL_PURCHASE` / `NON_RENEWING_PURCHASE` / `RENEWAL`:
+  - `lifetime_pass_1499` → `tier='premium'`, `is_pro=true`, `visibility_boost=3`
+  - `nudge_299` → `nudge_count += 1`
+  - `super_swap_3pk_299` → `super_swap_count += 3`
+  - `final_10_499` → `is_final_10_active=true`
+- On `CANCELLATION`/`REFUND` for lifetime_pass: revert to free.
+- App user ID = Supabase `user.id` (set via `Purchases.logIn(user.id)` on client).
 
-## 7. Out of scope (kept as placeholders)
-- Swipe deck and Chat pages remain functional but unchanged beyond the inventory rename.
-- PWA manifest / installability not added unless requested.
+**Edge function `verify-purchase`** (called by client right after a successful purchase as belt-and-suspenders): takes `app_user_id` + `product_id`, calls RevenueCat REST `/v1/subscribers/{id}` with `REVENUECAT_REST_API_KEY`, confirms entitlement, then applies the same profile updates. This makes the unlock instant instead of waiting for the webhook.
 
-## Open question
-After implementing, the "Generate the Supabase SQL migration…" instruction at the end of your prompt is already covered by step 2 — the migration runs automatically. Confirm the 650 / `owned`+`duplicate` switch and I'll proceed.
+## 3. Frontend
+
+**Native bridge layer `src/lib/iap.ts`**:
+- Detect Capacitor/native vs web (`Capacitor.isNativePlatform()`).
+- On native: dynamically import `@revenuecat/purchases-capacitor`, configure with platform key, `logIn(user.id)`, expose `purchase(productId)`, `restore()`, `getOfferings()`.
+- On web: `purchase()` resolves to `{ webBlocked: true }`; UI shows a "Get the mobile app to unlock" sheet.
+- Note: enabling IAPs requires adding Capacitor + iOS/Android shells. Plan covers code; the user will run `npx cap add ios/android` after Lovable export to GitHub. We will add Capacitor config + the plugin so it's wired up.
+
+**`PaywallProvider` (`src/providers/PaywallProvider.tsx`)**:
+- Context with `showPaywall(productId)`.
+- Renders a single global `<PaywallSheet>` (shadcn Sheet) showing product copy, price (from RevenueCat offerings), CTA → `iap.purchase(productId)` → on success: invalidate `["profile"]` query + toast.
+- Wrap inside `<AuthProvider>` in `App.tsx`.
+
+**Hook `usePaywall()`** — `const { showPaywall } = usePaywall()`.
+
+**Feature integrations**:
+- **Swipe daily limit** (`record_swipe` raises `daily_limit`) → `showPaywall('lifetime_pass_1499')`.
+- **Likes-you blur**: tap "Reveal" → `showPaywall('lifetime_pass_1499')`.
+- **Super Swap button** on `CardView` in `Swipe.tsx`: blue ⚡ icon top-right of card. Tap:
+  - if `super_swap_count > 0` → open `SuperSwapModal` (textarea + Send) → calls `send_super_swap` RPC → success toast + decrements badge.
+  - else → `showPaywall('super_swap_3pk_299')`.
+  - Badge shows remaining count next to icon.
+- **Nudge** button in Swipe header ("✨ Find a top match"): if `nudge_count>0` call `consume_nudge` RPC, navigate to revealed profile; else `showPaywall('nudge_299')`.
+- **Final 10**:
+  - In `Profile.tsx` add a "Progress to complete" card with a "Final 10 Insurance" button.
+  - When `owned < total - 10`: greyed out + lock icon + caption "Unlocks at {total−10}/{total}".
+  - When `owned >= total - 10` and not active: enabled CTA → `showPaywall('final_10_499')`.
+  - When `is_final_10_active=true`: badge "Active – matching with holders of your last cards".
+  - In `Album.tsx`: when `owned >= total - 10` and `!is_final_10_active`, auto-open the "Finish the Book" paywall once per session (sessionStorage flag).
+  - In `Swipe.tsx`: pass `_final_10: profile.is_final_10_active` to `get_potential_matches`.
+
+**Inbox for Super Swap messages**: Add a "Direct" tab in `Matches.tsx` listing `super_swap_messages` where `receiver_id = me`. Tapping sends the user to a lightweight chat using the same table (no match required).
+
+## 4. Realtime + notifications
+- Add `super_swap_messages` to `supabase_realtime` publication.
+- Extend `useMessageNotifications` to subscribe and fire a high-priority sonner toast titled "⚡ Super Swap from …" with an Open action.
+
+## 5. File changes summary
+
+New:
+- `supabase/migrations/<ts>_monetization.sql` (schema + RPCs + trigger + RPC update)
+- `supabase/functions/revenuecat-webhook/index.ts`
+- `supabase/functions/verify-purchase/index.ts`
+- `src/lib/iap.ts`
+- `src/providers/PaywallProvider.tsx`
+- `src/components/paywall/PaywallSheet.tsx`
+- `src/components/trade/SuperSwapModal.tsx`
+- `src/components/profile/ProgressDashboard.tsx`
+
+Edited:
+- `src/App.tsx` (wrap with PaywallProvider)
+- `src/pages/Swipe.tsx` (Super Swap icon, Nudge button, Final 10 RPC param)
+- `src/pages/Profile.tsx` (Progress Dashboard + Final 10 button)
+- `src/pages/Album.tsx` (auto-trigger Final 10 paywall at total−10)
+- `src/pages/Matches.tsx` (Direct/Super Swap inbox tab)
+- `src/hooks/useMessageNotifications.tsx` (super_swap channel)
+- `src/integrations/supabase/types.ts` is regenerated automatically.
+
+## 6. What the user does after I build this
+1. Approve this plan; I implement code + DB + edge functions.
+2. Add secrets `REVENUECAT_WEBHOOK_AUTH` and `REVENUECAT_REST_API_KEY` when prompted.
+3. In RevenueCat dashboard: create the 4 products + entitlements + webhook pointing at the deployed `revenuecat-webhook` URL.
+4. After GitHub export: `npx cap add ios && npx cap add android`, set bundle IDs, build the native shells, and the IAP buttons will go live in TestFlight / Internal Testing. Web preview will keep showing the "Available in the mobile app" sheet.

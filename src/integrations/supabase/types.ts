@@ -187,14 +187,20 @@ export type Database = {
           display_name: string
           emergency_contact: string | null
           id: string
+          is_final_10_active: boolean
           is_pro: boolean
           karma: number
           lat: number | null
           lng: number | null
+          nudge_count: number
           rating_count: number
+          super_swap_count: number
           swap_count: number
+          tier: string
           updated_at: string
           username: string | null
+          visibility_boost: number
+          wishlist_count: number
         }
         Insert: {
           avg_rating?: number
@@ -203,14 +209,20 @@ export type Database = {
           display_name?: string
           emergency_contact?: string | null
           id: string
+          is_final_10_active?: boolean
           is_pro?: boolean
           karma?: number
           lat?: number | null
           lng?: number | null
+          nudge_count?: number
           rating_count?: number
+          super_swap_count?: number
           swap_count?: number
+          tier?: string
           updated_at?: string
           username?: string | null
+          visibility_boost?: number
+          wishlist_count?: number
         }
         Update: {
           avg_rating?: number
@@ -219,14 +231,20 @@ export type Database = {
           display_name?: string
           emergency_contact?: string | null
           id?: string
+          is_final_10_active?: boolean
           is_pro?: boolean
           karma?: number
           lat?: number | null
           lng?: number | null
+          nudge_count?: number
           rating_count?: number
+          super_swap_count?: number
           swap_count?: number
+          tier?: string
           updated_at?: string
           username?: string | null
+          visibility_boost?: number
+          wishlist_count?: number
         }
         Relationships: []
       }
@@ -254,6 +272,33 @@ export type Database = {
           seq?: number | null
           slot_num?: number
           slot_type?: string
+        }
+        Relationships: []
+      }
+      super_swap_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          receiver_id?: string
+          sender_id?: string
         }
         Relationships: []
       }
@@ -374,6 +419,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      transactions: {
+        Row: {
+          created_at: string
+          currency: string | null
+          id: string
+          original_transaction_id: string | null
+          platform: string | null
+          price_cents: number | null
+          product_id: string
+          purchased_at: string
+          raw: Json | null
+          revenuecat_event_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          original_transaction_id?: string | null
+          platform?: string | null
+          price_cents?: number | null
+          product_id: string
+          purchased_at?: string
+          raw?: Json | null
+          revenuecat_event_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          original_transaction_id?: string | null
+          platform?: string | null
+          price_cents?: number | null
+          product_id?: string
+          purchased_at?: string
+          raw?: Json | null
+          revenuecat_event_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_inventory: {
         Row: {
@@ -532,6 +619,16 @@ export type Database = {
           completed: boolean
         }[]
       }
+      consume_nudge: {
+        Args: never
+        Returns: {
+          display_name: string
+          distance_km: number
+          receive_count: number
+          remaining: number
+          user_id: string
+        }[]
+      }
       get_likes_received: {
         Args: never
         Returns: {
@@ -552,7 +649,7 @@ export type Database = {
         }[]
       }
       get_potential_matches: {
-        Args: { _limit?: number; _max_km?: number }
+        Args: { _final_10?: boolean; _limit?: number; _max_km?: number }
         Returns: {
           avg_rating: number
           bio: string
@@ -585,6 +682,13 @@ export type Database = {
         Returns: {
           match_id: string
           matched: boolean
+          remaining: number
+        }[]
+      }
+      send_super_swap: {
+        Args: { _body: string; _receiver: string }
+        Returns: {
+          message_id: string
           remaining: number
         }[]
       }
