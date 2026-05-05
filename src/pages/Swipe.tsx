@@ -200,17 +200,6 @@ export default function Swipe() {
                     </Button>
                   ))}
                 </div>
-                {!isPremium && (
-                  <button
-                    onClick={() => showPaywall("lifetime_pass_1499")}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400">
-                      <Crown className="w-4 h-4"/> Lifetime Pass
-                    </div>
-                    <span className="text-xs text-muted-foreground">Unlimited swipes &amp; more →</span>
-                  </button>
-                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -233,21 +222,6 @@ export default function Swipe() {
                 className="absolute inset-0"
               >
                 <CardView c={top} me={me} stickerMap={stickerMap} likeOpacity={likeOpacity} nopeOpacity={nopeOpacity}/>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if ((me?.super_swap_count ?? 0) > 0) {
-                      setSuperSwapTarget({ id: top.user_id, name: top.display_name });
-                    } else {
-                      showPaywall("super_swap_3pk_299");
-                    }
-                  }}
-                  className="absolute top-3 right-3 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-full p-2 shadow-lg flex items-center gap-1 z-10"
-                  aria-label="Super Swap"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span className="text-[10px] font-black pr-1">{me?.super_swap_count ?? 0}</span>
-                </button>
               </motion.div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-card rounded-2xl border border-border">
@@ -261,14 +235,46 @@ export default function Swipe() {
         </div>
 
         {top && (
-          <div className="flex justify-center gap-6 mt-4">
-            <Button size="lg" variant="outline" className="rounded-full w-16 h-16 border-2" onClick={()=>swipe("dislike")}>
+          <div className="flex justify-center items-center gap-5 mt-4">
+            <Button size="lg" variant="outline" className="rounded-full w-16 h-16 border-2" onClick={() => swipe("dislike")}>
               <X className="w-7 h-7 text-need"/>
             </Button>
-            <Button size="lg" className="rounded-full w-16 h-16 bg-primary" onClick={()=>swipe("like")}>
+
+            {/* Super Swap — centre between X and Heart */}
+            <button
+              onClick={() => {
+                if ((me?.super_swap_count ?? 0) > 0) {
+                  setSuperSwapTarget({ id: top.user_id, name: top.display_name });
+                } else {
+                  showPaywall("super_swap_3pk_299");
+                }
+              }}
+              className="relative rounded-full w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 text-white shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity"
+              aria-label="Super Swap"
+            >
+              <Zap className="w-5 h-5"/>
+              {(me?.super_swap_count ?? 0) > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-blue-600 rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-black border border-blue-200">
+                  {me.super_swap_count}
+                </span>
+              )}
+            </button>
+
+            <Button size="lg" className="rounded-full w-16 h-16 bg-primary" onClick={() => swipe("like")}>
               <Heart className="w-7 h-7"/>
             </Button>
           </div>
+        )}
+
+        {/* Upgrade strip — visible for free users, understated */}
+        {top && !isPremium && (
+          <button
+            onClick={() => showPaywall("lifetime_pass_1499")}
+            className="mt-3 mx-auto flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-amber-500/50 transition-all"
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-500"/>
+            Lifetime Pass — unlimited swipes
+          </button>
         )}
       </div>
 
