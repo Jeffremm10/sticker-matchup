@@ -56,7 +56,26 @@ export default function Swipe() {
         _max_km: maxKm > 0 ? maxKm : null,
       } as any);
       if (error) throw error;
-      return data as Candidate[];
+      const candidates = (data ?? []) as Candidate[];
+      // Enrich with profile stats (swap_count, avg_rating, rating_count)
+      // regardless of whether the RPC has been updated to return them
+      if (candidates.length) {
+        const ids = candidates.map((c) => c.user_id);
+        const { data: stats } = await supabase
+          .from("profiles")
+          .select("id, swap_count, avg_rating, rating_count")
+          .in("id", ids);
+        if (stats?.length) {
+          const statsMap = new Map(stats.map((s: any) => [s.id, s]));
+          return candidates.map((c) => ({
+            ...c,
+            swap_count:   statsMap.get(c.user_id)?.swap_count   ?? c.swap_count   ?? 0,
+            avg_rating:   statsMap.get(c.user_id)?.avg_rating   ?? c.avg_rating   ?? 0,
+            rating_count: statsMap.get(c.user_id)?.rating_count ?? c.rating_count ?? 0,
+          }));
+        }
+      }
+      return candidates;
     },
   });
 
@@ -337,12 +356,10 @@ function CardView({ c, me, stickerMap, likeOpacity, nopeOpacity }: any) {
           </div>
           <div className="flex flex-col items-end gap-1">
             {c.is_pro && <Badge className="bg-accent text-accent-foreground">PRO</Badge>}
-            {c.rating_count > 0 && (
-              <span className="text-xs opacity-90 font-bold">⭐ {Number(c.avg_rating).toFixed(1)} ({c.rating_count})</span>
-            )}
-            {c.swap_count > 0 && (
-              <span className="text-xs opacity-80">🤝 {c.swap_count} swap{c.swap_count !== 1 ? "s" : ""}</span>
-            )}
+            <span className="text-xs opacity-90 font-bold">
+              {c.rating_count > 0 ? `⭐ ${Number(c.avg_rating).toFixed(1)} (${c.rating_count})` : "⭐ No ratings yet"}
+            </span>
+            <span className="text-xs opacity-80">🤝 {c.swap_count ?? 0} swap{(c.swap_count ?? 0) !== 1 ? "s" : ""}</span>
             <span className="text-xs opacity-80 flex items-center gap-1">
               <ThumbsUp className="w-3 h-3"/> Trust {c.karma ?? 0}
             </span>
