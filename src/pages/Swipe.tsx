@@ -148,20 +148,22 @@ export default function Swipe() {
     if (!r?.user_id) { toast.info("No new matches nearby to nudge"); return; }
 
     // Move the nudged user to the front of the deck
+    let nudgedCard: any = null;
     qc.setQueryData(["deck", maxKm, !!me?.is_final_10_active], (old: any[] = []) => {
       const idx = old.findIndex((c) => c.user_id === r.user_id);
       if (idx > 0) {
         const reordered = [...old];
         const [nudged] = reordered.splice(idx, 1);
+        nudgedCard = nudged;
         return [nudged, ...reordered];
       }
-      if (idx === 0) return old; // already on top
-      // Not in deck yet — refetch and they'll appear
+      if (idx === 0) { nudgedCard = old[0]; return old; }
       qc.invalidateQueries({ queryKey: ["deck"] });
       return old;
     });
 
-    toast.success(`${r.display_name} is now at the top — they have ${r.receive_count} stickers you need!`);
+    const count = nudgedCard?.receive_count ?? r.receive_count;
+    toast.success(`${r.display_name} is now at the top — they have ${count} stickers you need!`);
   };
 
   if (isLoading) return <AppShell><div className="p-8 text-center">Loading deck…</div></AppShell>;
