@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.swapstrat.app",
+  appId: "io.swapstrat.app",
   appName: "SwapStrat",
   webDir: "dist",
   server: {
