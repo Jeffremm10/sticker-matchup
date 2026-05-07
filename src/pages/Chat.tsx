@@ -5,9 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Layers, MapPin } from "lucide-react";
+import { ArrowLeft, Layers, MapPin } from "lucide-react";
 import { DupesShareCard } from "@/components/trade/DupesShareCard";
 import { MeetupSelector, MeetupSlotCard } from "@/components/trade/MeetupCard";
 import { SwapDashboard } from "@/components/trade/SwapDashboard";
@@ -22,7 +21,6 @@ export default function Chat() {
   const { data: myProfile } = useProfile();
   const nav = useNavigate();
   const qc = useQueryClient();
-  const [text, setText] = useState("");
   const [meetupOpen, setMeetupOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -158,11 +156,53 @@ export default function Chat() {
     return () => { supabase.removeChannel(ch); };
   }, [matchId, qc]);
 
+  // ── suggested messages by stage ───────────────────────────────────────
+  const swapStage = meetupSlot?.status === "confirmed" ? "active"
+    : meetupSlot ? "planned"
+    : "new";
+
+  const SUGGESTIONS: Record<string, string[]> = {
+    new: [
+      "Hey! Ready to swap? 👋",
+      "Hi! Looking forward to trading 😊",
+      "Which stickers do you need from me?",
+      "I have exactly what you need!",
+      "When are you free to meet?",
+      "I'm free this week!",
+      "Let's arrange a meetup!",
+      "Sounds good! 👍",
+      "Works for me!",
+      "Deal! 🤝",
+    ],
+    planned: [
+      "See you there! 👋",
+      "Works for me! 👍",
+      "Can we reschedule?",
+      "Sorry, something came up!",
+      "Running a bit late, sorry!",
+      "I'm on my way! 🚶",
+      "Almost there! ⏱️",
+      "How many stickers are we swapping?",
+      "Sounds perfect!",
+      "Deal! 🤝",
+    ],
+    active: [
+      "I'm on my way! 🚶",
+      "Almost there! ⏱️",
+      "I've arrived! 📍",
+      "Running a bit late, sorry!",
+      "Got the stickers, thanks! 🙏",
+      "Great swap! ⭐",
+      "Can we reschedule?",
+      "One sec!",
+    ],
+  };
+
+  const suggestions = SUGGESTIONS[swapStage];
+
   // ── actions ───────────────────────────────────────────────────────────
-  const send = async () => {
-    if (!text.trim() || !user || !matchId) return;
-    const body = text.trim();
-    setText("");
+  const send = async (body: string) => {
+    if (!body || !user || !matchId) return;
     await supabase.from("messages").insert({ match_id: matchId, sender_id: user.id, body });
   };
 
@@ -250,7 +290,8 @@ export default function Chat() {
       </div>
 
       {/* toolbar */}
-      <div className="border-t border-border bg-card">
+      <div className="border-t border-border bg-card pb-safe">
+        {/* action buttons */}
         <div className="flex gap-2 px-3 pt-2">
           <Button size="sm" variant="outline" onClick={shareDupes} className="text-xs gap-1">
             <Layers className="w-3.5 h-3.5"/> Share dupes
@@ -261,10 +302,17 @@ export default function Chat() {
             </Button>
           )}
         </div>
-        <div className="flex gap-2 p-3">
-          <Input value={text} onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Message…"/>
-          <Button onClick={send}><Send className="w-4 h-4"/></Button>
+        {/* suggested messages */}
+        <div className="overflow-x-auto flex gap-2 px-3 py-2 no-scrollbar">
+          {suggestions.map((msg) => (
+            <button
+              key={msg}
+              onClick={() => send(msg)}
+              className="shrink-0 rounded-full border border-border bg-muted hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-1.5 text-sm whitespace-nowrap"
+            >
+              {msg}
+            </button>
+          ))}
         </div>
       </div>
 
