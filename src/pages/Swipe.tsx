@@ -323,7 +323,12 @@ export default function Swipe() {
               Names are hidden. Swipe to reveal — match if they like you back.
             </p>
           </SheetHeader>
-          <div className="py-4 space-y-3">
+          {!isPremium && (
+            <div className="mb-3 px-1 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-center text-amber-700 dark:text-amber-400">
+              Upgrade to Lifetime Pass to see who liked you and like them back.
+            </div>
+          )}
+          <div className="py-2 space-y-3">
             {likesYou.length === 0 && (
               <div className="text-center text-muted-foreground py-8 text-sm">
                 No secret admirers yet. Keep swiping to get noticed.
@@ -334,25 +339,46 @@ export default function Swipe() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-9 h-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-black text-xs">
-                      ??
+                      {isPremium ? (l.display_name?.[0] ?? "?") : "??"}
                     </div>
                     <div>
-                      <div className="font-bold text-sm">Mystery collector</div>
+                      <div className="font-bold text-sm">
+                        {isPremium ? (l.display_name ?? "Collector") : "Mystery collector"}
+                      </div>
                       <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                         {l.distance_km != null && <><MapPin className="w-3 h-3"/> {l.distance_km} km</>}
                         {l.is_pro && <Badge className="bg-accent text-accent-foreground h-4 text-[9px] px-1">PRO</Badge>}
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 text-center">
-                    <div className="bg-get/15 rounded px-2 py-1">
-                      <div className="text-sm font-black text-get">+{l.receive_count}</div>
-                      <div className="text-[9px] uppercase text-muted-foreground">Get</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1 text-center">
+                      <div className="bg-get/15 rounded px-2 py-1">
+                        <div className="text-sm font-black text-get">+{l.receive_count}</div>
+                        <div className="text-[9px] uppercase text-muted-foreground">Get</div>
+                      </div>
+                      <div className="bg-give/15 rounded px-2 py-1">
+                        <div className="text-sm font-black text-give">−{l.give_count}</div>
+                        <div className="text-[9px] uppercase text-muted-foreground">Give</div>
+                      </div>
                     </div>
-                    <div className="bg-give/15 rounded px-2 py-1">
-                      <div className="text-sm font-black text-give">−{l.give_count}</div>
-                      <div className="text-[9px] uppercase text-muted-foreground">Give</div>
-                    </div>
+                    {isPremium && l.real_user_id && (
+                      <Button size="sm" className="rounded-full h-9 w-9 p-0"
+                        onClick={async () => {
+                          const { data, error } = await supabase.rpc("record_swipe", { _receiver: l.real_user_id, _direction: "like" });
+                          if (error) { toast.error(error.message); return; }
+                          const r = (data as any)?.[0];
+                          if (r?.matched) {
+                            setShowLikes(false);
+                            setMatchModal({ name: l.display_name, matchId: r.match_id, receive: l.receive_count, give: l.give_count });
+                          } else {
+                            toast.success(`Liked ${l.display_name}!`);
+                            qc.invalidateQueries({ queryKey: ["likes-received"] });
+                          }
+                        }}>
+                        <Heart className="w-4 h-4"/>
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
