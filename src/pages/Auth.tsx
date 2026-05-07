@@ -49,9 +49,44 @@ export default function Auth() {
     setBusy(true);
     try {
       const native = await isNativeIOS();
-      // On iOS use capacitor://localhost as redirect so Supabase sends tokens back to the app
-      const redirectUri = native ? "capacitor://localhost" : window.location.origin;
-      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: redirectUri });
+
+      if (native) {
+        // Use SFSafariViewController + custom scheme deep link
+        const { Browser } = await import("@capacitor/browser");
+        const { App } = await import("@capacitor/app");
+
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: "io.swapstrat.app://login-callback",
+            skipBrowserRedirect: true,
+          },
+        });
+        if (error || !data?.url) throw new Error("Could not get OAuth URL");
+
+        await Browser.open({ url: data.url });
+
+        const listener = await App.addListener("appUrlOpen", async ({ url }) => {
+          if (!url.startsWith("io.swapstrat.app://")) return;
+          await listener.remove();
+          await Browser.close();
+          const fragment = url.split("#")[1] ?? "";
+          const params = new URLSearchParams(fragment);
+          const access_token = params.get("access_token");
+          const refresh_token = params.get("refresh_token");
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+            nav("/", { replace: true });
+          } else {
+            toast.error("Sign-in failed — try again");
+          }
+          setBusy(false);
+        });
+        return; // wait for deep link callback
+      }
+
+      // Web: Lovable managed OAuth
+      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
       if (r.error) { toast.error("Google sign-in failed"); setBusy(false); return; }
       if (r.redirected) return;
       nav("/", { replace: true });
