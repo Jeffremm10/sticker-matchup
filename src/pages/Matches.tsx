@@ -1,14 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/AppShell";
-import { MessageCircle, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MessageCircle, Zap, Heart, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 export default function Matches() {
   const { user } = useAuth();
+  const qc = useQueryClient();
+  const nav = useNavigate();
 
   const { data = [] } = useQuery({
     enabled: !!user,
@@ -90,19 +94,51 @@ export default function Matches() {
             </div>
           )}
           {superSwaps.map((m: any) => (
-            <div key={m.id} className="bg-card border border-border rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white flex items-center justify-center font-black text-xs">
+            <div key={m.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white flex items-center justify-center shrink-0">
                   <Zap className="w-4 h-4" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="font-bold text-sm">{m.sender?.display_name ?? "Collector"}</div>
                   <div className="text-[10px] text-muted-foreground">
                     {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
                   </div>
                 </div>
               </div>
-              <p className="text-sm pl-11">{m.body}</p>
+
+              <p className="text-sm bg-muted rounded-xl px-3 py-2">{m.body}</p>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm" variant="outline"
+                  className="flex-1 border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                  onClick={async () => {
+                    await supabase.rpc("record_swipe", { _receiver: m.sender_id, _direction: "dislike" });
+                    qc.setQueryData(["super-swaps", user?.id], (old: any[]) => old.filter(s => s.id !== m.id));
+                    toast.info("Passed");
+                  }}>
+                  <X className="w-4 h-4 mr-1" /> Pass
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-gradient-to-r from-primary to-primary/80"
+                  onClick={async () => {
+                    const { data, error } = await supabase.rpc("record_swipe", { _receiver: m.sender_id, _direction: "like" });
+                    if (error) { toast.error(error.message); return; }
+                    const r = (data as any)?.[0];
+                    qc.setQueryData(["super-swaps", user?.id], (old: any[]) => old.filter(s => s.id !== m.id));
+                    if (r?.matched) {
+                      toast.success(`Matched with ${m.sender?.display_name}!`);
+                      qc.invalidateQueries({ queryKey: ["matches", user?.id] });
+                      nav(`/chat/${r.match_id}`);
+                    } else {
+                      toast.success("Liked! You'll match if they like you back.");
+                    }
+                  }}>
+                  <Heart className="w-4 h-4 mr-1" /> Like back
+                </Button>
+              </div>
             </div>
           ))}
         </TabsContent>
