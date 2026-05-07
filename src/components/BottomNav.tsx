@@ -1,17 +1,18 @@
 import { NavLink } from "react-router-dom";
-import { BookOpen, Flame, MessageCircle } from "lucide-react";
+import { BookOpen, Flame, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { to: "/album",   label: "Album", icon: BookOpen },
-  { to: "/swipe",   label: "Swipe", icon: Flame },
-  { to: "/matches", label: "Chat",  icon: MessageCircle },
+  { to: "/album",   label: "Album",   icon: BookOpen },
+  { to: "/swipe",   label: "Swipe",   icon: Flame },
+  { to: "/matches", label: "Chat",    icon: MessageCircle },
+  { to: "/profile", label: "Profile", icon: User },
 ];
 
 export const BottomNav = () => (
   <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border max-w-md mx-auto"
     style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-    <div className="grid grid-cols-3">
+    <div className="grid grid-cols-4">
       {items.map(({ to, label, icon: Icon }) => (
         <NavLink key={to} to={to} end
           className={({ isActive }) => cn(
