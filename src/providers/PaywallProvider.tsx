@@ -1,12 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Smartphone, Crown, Zap, Compass, Trophy } from "lucide-react";
+import { Sparkles, Smartphone, Crown, Zap, Compass, Trophy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { configureIAP, getOfferings, purchase, restorePurchases, isNative } from "@/lib/iap";
+
+const STRIPE_ENABLED = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
 export type ProductId =
   | "lifetime_pass"
@@ -87,21 +89,42 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
 
   const closePaywall = useCallback(() => setOpen(false), []);
 
+  const openStripeCheckout = async () => {
+    if (!product || !user) return;
+    setBusy(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) throw new Error("Not logged in");
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: { product_id: product, app_url: window.location.origin },
+      });
+      if (error || !data?.url) throw new Error(error?.message || "Could not create checkout");
+      window.open(data.url, "_blank");
+      toast.info("Complete payment in the browser, then return here.");
+      // Refetch profile after a short delay so unlocked status shows up
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["profile", user.id] }), 8000);
+      setOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Checkout failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const buy = async () => {
     if (!product || !user) return;
+    if (STRIPE_ENABLED) return openStripeCheckout();
     setBusy(true);
     try {
       const r = await purchase(product);
       if (r.ok) {
-        // Belt-and-suspenders: verify with server so unlock is instant
         await supabase.functions.invoke("verify-purchase", { body: { product_id: product } });
-        toast.success("Purchase complete 🎉");
+        toast.success("Purchase complete!");
         qc.invalidateQueries({ queryKey: ["profile", user.id] });
         setOpen(false);
       } else if ("cancelled" in r && r.cancelled) {
-        // user cancelled, no toast
-      } else if ("webBlocked" in r && r.webBlocked) {
-        toast.error("Purchases happen in the SwapStrat mobile app");
+        // user cancelled
       } else {
         toast.error(("error" in r && r.error) || "Purchase failed");
       }
@@ -111,6 +134,10 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   };
 
   const restore = async () => {
+    if (STRIPE_ENABLED) {
+      toast.info("Purchases are linked to your account — just sign in to restore.");
+      return;
+    }
     setBusy(true);
     const r = await restorePurchases();
     setBusy(false);
@@ -118,8 +145,6 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
       await supabase.functions.invoke("verify-purchase", { body: { product_id: "lifetime_pass" } });
       qc.invalidateQueries({ queryKey: ["profile", user?.id] });
       toast.success("Restored");
-    } else if ("webBlocked" in r && r.webBlocked) {
-      toast.error("Restore happens in the mobile app");
     } else {
       toast.error(("error" in r && r.error) || "Nothing to restore");
     }
@@ -154,31 +179,32 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
                   </div>
                 ))}
               </div>
-              {!native && (
-                <div className="bg-secondary border border-border rounded-xl p-4 text-sm flex items-start gap-3 mb-3">
-                  <Smartphone className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-bold mb-1">Available in the mobile app</div>
-                    <p className="text-xs text-muted-foreground">
-                      Purchases run through Apple App Store and Google Play. Install SwapStrat on your phone to unlock.
-                    </p>
-                  </div>
-                </div>
-              )}
               <Button
                 size="lg"
-                disabled={!native || busy}
+                disabled={busy}
                 className="w-full font-black text-base"
                 onClick={buy}
               >
-                {busy ? "Processing…" : `Unlock — ${livePrice ?? c.price}`}
+                {busy ? "Opening checkout…" : (
+                  <span className="flex items-center gap-2">
+                    {STRIPE_ENABLED && <ExternalLink className="w-4 h-4" />}
+                    {`Unlock — ${livePrice ?? c.price}`}
+                  </span>
+                )}
               </Button>
+              {STRIPE_ENABLED && (
+                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                  Secure payment via Stripe. Opens in your browser.
+                </p>
+              )}
               <Button variant="ghost" size="sm" className="w-full mt-2" onClick={restore} disabled={busy}>
                 Restore purchases
               </Button>
-              <p className="text-[10px] text-muted-foreground text-center mt-3">
-                Billed via Apple/Google. Cancel anytime in your store account (subscriptions only — Lifetime is one-time).
-              </p>
+              {!STRIPE_ENABLED && (
+                <p className="text-[10px] text-muted-foreground text-center mt-3">
+                  Billed via Apple/Google. Cancel anytime in your store account.
+                </p>
+              )}
             </>
           )}
         </SheetContent>
