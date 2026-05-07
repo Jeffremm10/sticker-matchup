@@ -77,15 +77,22 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
     })();
   }, [user]);
 
-  // Detect successful Stripe return
+  // Detect successful Stripe return — verify with server and unlock
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("payment_success") === "1") {
-      const product = params.get("product");
-      toast.success(product === "lifetime_pass" ? "Lifetime Pass unlocked!" : "Purchase complete!");
-      qc.invalidateQueries({ queryKey: ["profile", user?.id] });
-      window.history.replaceState({}, "", window.location.pathname);
-    }
+    if (params.get("payment_success") !== "1") return;
+    const product = params.get("product") ?? "lifetime_pass";
+    window.history.replaceState({}, "", window.location.pathname);
+    toast.info("Verifying payment…");
+    supabase.functions.invoke("verify-stripe-session", { body: { product_id: product } })
+      .then(({ data }) => {
+        if (data?.ok) {
+          toast.success(product === "lifetime_pass" ? "Lifetime Pass unlocked! 🎉" : "Purchase complete!");
+          qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+        } else {
+          toast.error("Payment not confirmed yet — try again in a moment.");
+        }
+      });
   }, []);
 
   const showPaywall = useCallback((p: ProductId) => {
