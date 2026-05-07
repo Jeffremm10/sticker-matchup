@@ -137,7 +137,7 @@ export default function Swipe() {
   };
 
   const onNudge = async () => {
-    if (!me?.is_pro && (me?.nudge_count ?? 0) <= 0) {
+    if ((me?.nudge_count ?? 0) <= 0) {
       showPaywall("nudge");
       return;
     }
@@ -280,7 +280,7 @@ export default function Swipe() {
             {/* Super Swap — centre between X and Heart */}
             <button
               onClick={() => {
-                if (me?.is_pro || (me?.super_swap_count ?? 0) > 0) {
+                if ((me?.super_swap_count ?? 0) > 0) {
                   setSuperSwapTarget({ id: top.user_id, name: top.display_name });
                 } else {
                   showPaywall("super_swipe");

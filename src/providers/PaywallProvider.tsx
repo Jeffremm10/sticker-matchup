@@ -15,7 +15,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
   lifetime_pass: {
     title: "SwapStrat Lifetime Pass",
     subtitle: "One payment. Forever.",
-    bullets: ["Unlimited swipes", "Unlimited nudges", "Unlimited super swipes", "Final 10 Insurance included", "See who liked you", "PRO badge"],
+    bullets: ["Unlimited swipes", "30 Nudges included", "30 Super Swipes included", "Final 10 Insurance included", "See who liked you", "PRO badge"],
     price: "CHF 14.99",
     icon: Crown,
     color: "from-amber-500 to-orange-500",

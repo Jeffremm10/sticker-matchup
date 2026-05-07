@@ -76,29 +76,21 @@ export function ProgressDashboard({ profile }: { profile: any }) {
         >
           <div className="flex items-center justify-between">
             <Zap className="w-4 h-4 text-blue-500" />
-            <span className="text-lg font-black">
-              {profile?.is_pro ? "∞" : (profile?.super_swap_count ?? 0)}
-            </span>
+            <span className="text-lg font-black">{profile?.super_swap_count ?? 0}</span>
           </div>
           <div className="text-[11px] uppercase font-bold mt-1">Super Swaps</div>
-          <div className="text-[10px] text-muted-foreground">
-            {profile?.is_pro ? "Included in Lifetime Pass" : "Tap to top up"}
-          </div>
+          <div className="text-[10px] text-muted-foreground">Tap to top up</div>
         </button>
         <button
           className="bg-card border border-border rounded-xl p-3 text-left hover:bg-secondary transition"
-          onClick={() => !profile?.is_pro && showPaywall("nudge")}
+          onClick={() => showPaywall("nudge")}
         >
           <div className="flex items-center justify-between">
             <Compass className="w-4 h-4 text-violet-500" />
-            <span className="text-lg font-black">
-              {profile?.is_pro ? "∞" : (profile?.nudge_count ?? 0)}
-            </span>
+            <span className="text-lg font-black">{profile?.nudge_count ?? 0}</span>
           </div>
           <div className="text-[11px] uppercase font-bold mt-1">Nudges</div>
-          <div className="text-[10px] text-muted-foreground">
-            {profile?.is_pro ? "Included in Lifetime Pass" : "Tap to top up"}
-          </div>
+          <div className="text-[10px] text-muted-foreground">Tap to top up</div>
         </button>
       </div>
 

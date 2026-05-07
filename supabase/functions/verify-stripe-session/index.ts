@@ -60,8 +60,13 @@ Deno.serve(async (req) => {
   }, { onConflict: "stripe_session_id" });
 
   if (product_id === "lifetime_pass") {
-    await admin.from("profiles").update({ is_pro: true }).eq("id", user.id);
-    console.log("Set is_pro=true for", user.id);
+    const { data: cur } = await admin.from("profiles").select("nudge_count, super_swap_count").eq("id", user.id).single();
+    await admin.from("profiles").update({
+      is_pro: true,
+      nudge_count: (cur?.nudge_count ?? 0) + 30,
+      super_swap_count: (cur?.super_swap_count ?? 0) + 30,
+    }).eq("id", user.id);
+    console.log("Set is_pro + 30 nudges + 30 super swaps for", user.id);
   } else if (product_id === "final_10") {
     await admin.from("profiles").update({ is_final_10_active: true }).eq("id", user.id);
     console.log("Set is_final_10_active=true for", user.id);
