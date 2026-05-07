@@ -47,8 +47,9 @@ export default function Matches() {
 
   return (
     <AppShell>
-      <header className="p-4"><h1 className="text-xl font-black">Matches</h1></header>
-      <Tabs defaultValue="matches" className="px-4">
+      <div className="max-w-2xl mx-auto px-4">
+      <header className="py-4"><h1 className="text-xl font-black">Matches</h1></header>
+      <Tabs defaultValue="matches" className="">
         <TabsList className="w-full grid grid-cols-2">
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="direct" className="relative">
@@ -106,6 +107,7 @@ export default function Matches() {
           ))}
         </TabsContent>
       </Tabs>
+      </div>
     </AppShell>
   );
 }

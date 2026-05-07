@@ -171,6 +171,7 @@ export default function Swipe() {
 
   return (
     <AppShell>
+      <div className="max-w-lg mx-auto">
       <header className="p-4 flex items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-black flex items-center gap-2">
@@ -300,6 +301,7 @@ export default function Swipe() {
           </div>
         )}
 
+      </div>
       </div>
 
       <AnimatePresence>

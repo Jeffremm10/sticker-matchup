@@ -9,7 +9,7 @@ const items = [
 ];
 
 export const BottomNav = () => (
-  <nav className="fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border max-w-md mx-auto"
+  <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t border-border max-w-md mx-auto"
     style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
     <div className="grid grid-cols-3">
       {items.map(({ to, label, icon: Icon }) => (
