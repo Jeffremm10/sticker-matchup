@@ -8,15 +8,6 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
 
-const DEEP_LINK_SCHEME = "io.swapstrat.app://login-callback";
-
-async function isNativeIOS(): Promise<boolean> {
-  try {
-    const { Capacitor } = await import("@capacitor/core");
-    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
-  } catch { return false; }
-}
-
 const TEST_USERS = [
   { email: "alex@swap26.test",   label: "Alex (Toronto)" },
   { email: "maya@swap26.test",   label: "Maya (CDMX)" },
@@ -51,32 +42,9 @@ export default function Auth() {
     setBusy(true);
     try {
       const native = await isNativeIOS();
-      if (native) {
-        // iOS: open in-app browser, redirect back via deep link
-        const { Browser } = await import("@capacitor/browser");
-        const { App } = await import("@capacitor/app");
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: DEEP_LINK_SCHEME, skipBrowserRedirect: true },
-        });
-        if (error || !data.url) throw error ?? new Error("No URL");
-        await Browser.open({ url: data.url, windowName: "_self" });
-        App.addListener("appUrlOpen", async ({ url }) => {
-          if (!url.startsWith("io.swapstrat.app://")) return;
-          await Browser.close();
-          // Parse hash/query tokens from the redirect URL
-          const parsed = new URL(url.replace("io.swapstrat.app://login-callback", "https://x.com/"));
-          const access_token = parsed.searchParams.get("access_token") ?? parsed.hash.match(/access_token=([^&]+)/)?.[1];
-          const refresh_token = parsed.searchParams.get("refresh_token") ?? parsed.hash.match(/refresh_token=([^&]+)/)?.[1];
-          if (access_token && refresh_token) {
-            await supabase.auth.setSession({ access_token, refresh_token });
-            nav("/", { replace: true });
-          }
-        });
-        return; // wait for deep link
-      }
-      // Web: use lovable wrapper
-      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+      // On iOS use capacitor://localhost as redirect so Supabase sends tokens back to the app
+      const redirectUri = native ? "capacitor://localhost" : window.location.origin;
+      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: redirectUri });
       if (r.error) { toast.error("Google sign-in failed"); setBusy(false); return; }
       if (r.redirected) return;
       nav("/", { replace: true });
