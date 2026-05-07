@@ -92,17 +92,22 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   const openStripeCheckout = async () => {
     if (!product || !user) return;
     setBusy(true);
+    // Open blank window immediately while still in user-gesture context
+    const win = window.open("", "_blank");
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-      if (!token) throw new Error("Not logged in");
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: { product_id: product, app_url: window.location.origin },
       });
-      if (error || !data?.url) throw new Error(error?.message || "Could not create checkout");
-      window.open(data.url, "_blank");
+      if (error || !data?.url) {
+        win?.close();
+        throw new Error(error?.message || "Could not create checkout");
+      }
+      if (win) {
+        win.location.href = data.url;
+      } else {
+        window.location.href = data.url;
+      }
       toast.info("Complete payment in the browser, then return here.");
-      // Refetch profile after a short delay so unlocked status shows up
       setTimeout(() => qc.invalidateQueries({ queryKey: ["profile", user.id] }), 8000);
       setOpen(false);
     } catch (err: any) {
