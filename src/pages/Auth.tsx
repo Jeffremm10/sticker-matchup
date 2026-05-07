@@ -8,6 +8,13 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Trophy } from "lucide-react";
 
+async function isNativeIOS(): Promise<boolean> {
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  } catch { return false; }
+}
+
 const TEST_USERS = [
   { email: "alex@swap26.test",   label: "Alex (Toronto)" },
   { email: "maya@swap26.test",   label: "Maya (CDMX)" },
