@@ -111,6 +111,21 @@ export default function Profile() {
           </div>
         )}
         <Button className="w-full" onClick={save}>Save</Button>
+
+        {!profile?.is_pro && (
+          <Button variant="outline" className="w-full text-xs" onClick={async () => {
+            toast.info("Checking for purchases…");
+            const { data } = await supabase.functions.invoke("restore-purchases");
+            if (data?.restored) {
+              toast.success("Purchase restored!");
+              qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+            } else {
+              toast.error("No completed purchase found.");
+            }
+          }}>
+            Restore purchase
+          </Button>
+        )}
       </div>
     </AppShell>
   );
