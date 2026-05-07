@@ -669,6 +669,8 @@ export type Database = {
           give_count: number
           give_ids: number[]
           is_pro: boolean
+          liker_display_name: string
+          liker_id: string
           receive_count: number
           receive_ids: number[]
         }[]
