@@ -37,9 +37,10 @@ export default function Swipe() {
   const nav = useNavigate();
   const { showPaywall } = usePaywall();
   const [matchModal, setMatchModal] = useState<{ name: string; matchId: string; receive: number; give: number } | null>(null);
-  const [maxKm, setMaxKm] = useState<number>(0); // 0 = no limit
+  const [maxKm, setMaxKm] = useState<number>(0);
   const [showLikes, setShowLikes] = useState(false);
   const [superSwapTarget, setSuperSwapTarget] = useState<{ id: string; name: string } | null>(null);
+  const [nudgeResult, setNudgeResult] = useState<{ name: string; receive: number; distance_km: number | null } | null>(null);
 
   const { data: me } = useQuery({
     enabled: !!user, queryKey: ["profile", user?.id],
@@ -163,7 +164,7 @@ export default function Swipe() {
     });
 
     const count = nudgedCard?.receive_count ?? r.receive_count;
-    toast.success(`${r.display_name} is now at the top — they have ${count} stickers you need!`);
+    setNudgeResult({ name: r.display_name, receive: count, distance_km: nudgedCard?.distance_km ?? r.distance_km ?? null });
   };
 
   if (isLoading) return <AppShell><div className="p-8 text-center">Loading deck…</div></AppShell>;
@@ -404,6 +405,57 @@ export default function Swipe() {
           receiverName={superSwapTarget.name}
         />
       )}
+
+      {/* Nudge result modal */}
+      <AnimatePresence>
+        {nudgeResult && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-background/70 backdrop-blur-sm"
+            onClick={() => setNudgeResult(null)}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 260 }}
+              className="w-full max-w-md rounded-3xl bg-card border border-border shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-br from-violet-500 to-fuchsia-500 px-6 pt-6 pb-8 text-white text-center">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mx-auto mb-3">
+                  <Compass className="w-7 h-7" />
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-widest opacity-80 mb-1">Nudge found</p>
+                <h2 className="text-2xl font-black">{nudgeResult.name}</h2>
+                {nudgeResult.distance_km != null && (
+                  <p className="text-sm opacity-80 mt-1 flex items-center justify-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" /> {nudgeResult.distance_km} km away
+                  </p>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div className="px-6 py-5">
+                <div className="flex items-center justify-center gap-3 mb-5">
+                  <div className="flex-1 bg-get/10 rounded-2xl p-4 text-center">
+                    <div className="text-3xl font-black text-get">+{nudgeResult.receive}</div>
+                    <div className="text-xs text-muted-foreground mt-1">stickers you need</div>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground text-center mb-5">
+                  They're now at the top of your deck. Swipe right to match!
+                </p>
+                <Button
+                  className="w-full font-black text-base rounded-2xl h-12"
+                  onClick={() => setNudgeResult(null)}
+                >
+                  <Heart className="w-4 h-4 mr-2" /> Swipe now
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }
