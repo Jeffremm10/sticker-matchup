@@ -63,13 +63,15 @@ export default function Swipe() {
   });
   const stickerMap = new Map(stickers.map((s:any) => [s.id, s]));
 
+  const isFinal10 = !!(me?.is_final_10_active || me?.is_pro);
+
   const { data: deck = [], isLoading } = useQuery({
-    enabled: !!user, queryKey: ["deck", maxKm, !!me?.is_final_10_active],
+    enabled: !!user, queryKey: ["deck", maxKm, isFinal10],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_potential_matches", {
         _limit: 20,
         _max_km: maxKm > 0 ? maxKm : null,
-        _final_10: !!me?.is_final_10_active,
+        _final_10: isFinal10,
       } as any);
       if (error) throw error;
       const candidates = (data ?? []) as Candidate[];
@@ -123,7 +125,7 @@ export default function Swipe() {
         return;
       }
       const r = (data as any)?.[0];
-      qc.setQueryData(["deck", maxKm, !!me?.is_final_10_active], (old: Candidate[] = []) => old.slice(1));
+      qc.setQueryData(["deck", maxKm, isFinal10], (old: Candidate[] = []) => old.slice(1));
       qc.invalidateQueries({ queryKey: ["likes-received"] });
       x.set(0);
       if (r?.matched) {
@@ -150,7 +152,7 @@ export default function Swipe() {
 
     // Move the nudged user to the front of the deck
     let nudgedCard: any = null;
-    qc.setQueryData(["deck", maxKm, !!me?.is_final_10_active], (old: any[] = []) => {
+    qc.setQueryData(["deck", maxKm, isFinal10], (old: any[] = []) => {
       const idx = old.findIndex((c) => c.user_id === r.user_id);
       if (idx > 0) {
         const reordered = [...old];
