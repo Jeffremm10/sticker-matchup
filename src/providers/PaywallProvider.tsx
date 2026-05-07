@@ -59,6 +59,7 @@ export const usePaywall = () => useContext(PaywallCtx);
 export function PaywallProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const profile = qc.getQueryData<{ is_pro?: boolean }>(["profile", user?.id]);
   const [open, setOpen] = useState(false);
   const [product, setProduct] = useState<ProductId | null>(null);
   const [native, setNative] = useState(false);
@@ -87,6 +88,10 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const showPaywall = useCallback((p: ProductId) => {
+    if (p === "lifetime_pass" && profile?.is_pro) {
+      toast.info("You already have the Lifetime Pass!");
+      return;
+    }
     setProduct(p);
     setLivePrice(null);
     setCheckoutUrl(null);

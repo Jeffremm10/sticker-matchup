@@ -35,6 +35,14 @@ Deno.serve(async (req) => {
   const { product_id, app_url } = await req.json();
   console.log("Creating checkout for", product_id, "user", user.id, "app_url", app_url);
 
+  // Block duplicate lifetime pass purchase
+  if (product_id === "lifetime_pass") {
+    const { data: profile } = await supabase.from("profiles").select("is_pro").eq("id", user.id).maybeSingle();
+    if (profile?.is_pro) {
+      return new Response(JSON.stringify({ error: "already_purchased" }), { status: 400, headers: corsHeaders });
+    }
+  }
+
   const priceId = PRICE_IDS[product_id];
   if (!priceId) {
     return new Response(JSON.stringify({ error: "invalid product" }), { status: 400, headers: corsHeaders });
