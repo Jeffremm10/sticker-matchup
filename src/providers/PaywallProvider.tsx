@@ -64,6 +64,7 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   const [native, setNative] = useState(false);
   const [livePrice, setLivePrice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   // Configure SDK on login
   useEffect(() => {
@@ -77,6 +78,7 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   const showPaywall = useCallback((p: ProductId) => {
     setProduct(p);
     setLivePrice(null);
+    setCheckoutUrl(null);
     setOpen(true);
     isNative().then(async (n) => {
       setNative(n);
@@ -89,27 +91,15 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
 
   const closePaywall = useCallback(() => setOpen(false), []);
 
-  const openStripeCheckout = async () => {
+  const loadStripeUrl = async () => {
     if (!product || !user) return;
     setBusy(true);
-    // Open blank window immediately while still in user-gesture context
-    const win = window.open("", "_blank");
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: { product_id: product, app_url: window.location.origin },
       });
-      if (error || !data?.url) {
-        win?.close();
-        throw new Error(error?.message || "Could not create checkout");
-      }
-      if (win) {
-        win.location.href = data.url;
-      } else {
-        window.location.href = data.url;
-      }
-      toast.info("Complete payment in the browser, then return here.");
-      setTimeout(() => qc.invalidateQueries({ queryKey: ["profile", user.id] }), 8000);
-      setOpen(false);
+      if (error || !data?.url) throw new Error(error?.message || "Could not create checkout");
+      setCheckoutUrl(data.url);
     } catch (err: any) {
       toast.error(err.message || "Checkout failed");
     } finally {
@@ -119,7 +109,7 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
 
   const buy = async () => {
     if (!product || !user) return;
-    if (STRIPE_ENABLED) return openStripeCheckout();
+    if (STRIPE_ENABLED) return loadStripeUrl();
     setBusy(true);
     try {
       const r = await purchase(product);
@@ -184,22 +174,35 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
                   </div>
                 ))}
               </div>
-              <Button
-                size="lg"
-                disabled={busy}
-                className="w-full font-black text-base"
-                onClick={buy}
-              >
-                {busy ? "Opening checkout…" : (
-                  <span className="flex items-center gap-2">
-                    {STRIPE_ENABLED && <ExternalLink className="w-4 h-4" />}
-                    {`Unlock — ${livePrice ?? c.price}`}
-                  </span>
-                )}
-              </Button>
+              {STRIPE_ENABLED && checkoutUrl ? (
+                <a
+                  href={checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full"
+                  onClick={() => {
+                    setTimeout(() => qc.invalidateQueries({ queryKey: ["profile", user?.id] }), 10000);
+                    setOpen(false);
+                  }}
+                >
+                  <Button size="lg" className="w-full font-black text-base">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Pay now — {livePrice ?? c.price}
+                  </Button>
+                </a>
+              ) : (
+                <Button
+                  size="lg"
+                  disabled={busy}
+                  className="w-full font-black text-base"
+                  onClick={buy}
+                >
+                  {busy ? "Loading…" : `Unlock — ${livePrice ?? c.price}`}
+                </Button>
+              )}
               {STRIPE_ENABLED && (
                 <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  Secure payment via Stripe. Opens in your browser.
+                  Secure payment via Stripe. Opens in a new tab.
                 </p>
               )}
               <Button variant="ghost" size="sm" className="w-full mt-2" onClick={restore} disabled={busy}>
