@@ -98,7 +98,8 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: { product_id: product, app_url: window.location.origin },
       });
-      if (error || !data?.url) throw new Error(error?.message || "Could not create checkout");
+      console.log("checkout invoke result:", JSON.stringify({ data, error }));
+      if (error || !data?.url) throw new Error(error?.message || `No URL in response: ${JSON.stringify(data)}`);
       setCheckoutUrl(data.url);
     } catch (err: any) {
       toast.error(err.message || "Checkout failed");
