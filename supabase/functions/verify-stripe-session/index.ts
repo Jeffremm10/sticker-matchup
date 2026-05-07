@@ -22,23 +22,30 @@ Deno.serve(async (req) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response(JSON.stringify({ error: "unauth" }), { status: 401, headers: corsHeaders });
 
-  const { product_id } = await req.json();
+  const { product_id, session_id } = await req.json();
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY")!;
 
-  // Find the most recent completed checkout session for this user
-  const res = await fetch(
-    `https://api.stripe.com/v1/checkout/sessions?client_reference_id=${user.id}&limit=5`,
-    { headers: { "Authorization": `Bearer ${stripeKey}` } }
-  );
-  const { data: sessions } = await res.json();
+  if (!session_id) {
+    console.error("No session_id provided");
+    return new Response(JSON.stringify({ ok: false, error: "no_session_id" }), { headers: corsHeaders });
+  }
 
-  const paid = (sessions ?? []).find(
-    (s: any) => s.payment_status === "paid" && s.metadata?.product_id === product_id
-  );
+  // Fetch the specific session directly from Stripe
+  const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${session_id}`, {
+    headers: { "Authorization": `Bearer ${stripeKey}` },
+  });
+  const session = await res.json();
 
-  if (!paid) {
-    console.log("No paid session found for user", user.id, "product", product_id);
-    return new Response(JSON.stringify({ ok: false }), { headers: corsHeaders });
+  console.log("Session status:", session.payment_status, "client_ref:", session.client_reference_id, "user:", user.id);
+
+  if (session.payment_status !== "paid") {
+    console.log("Session not paid:", session.payment_status);
+    return new Response(JSON.stringify({ ok: false, error: "not_paid" }), { headers: corsHeaders });
+  }
+
+  if (session.client_reference_id !== user.id) {
+    console.error("User mismatch", session.client_reference_id, "vs", user.id);
+    return new Response(JSON.stringify({ ok: false, error: "user_mismatch" }), { status: 403, headers: corsHeaders });
   }
 
   const admin = createClient(
@@ -46,17 +53,16 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Record purchase
   await admin.from("stripe_purchases").upsert({
     user_id: user.id,
     product_id,
-    stripe_session_id: paid.id,
+    stripe_session_id: session_id,
   }, { onConflict: "stripe_session_id" });
 
-  // Unlock based on product
   if (product_id === "lifetime_pass") {
-    await admin.from("profiles").update({ is_pro: true }).eq("id", user.id);
-    console.log("Set is_pro=true for", user.id);
+    const { error } = await admin.from("profiles").update({ is_pro: true }).eq("id", user.id);
+    if (error) console.error("Failed to set is_pro:", error.message);
+    else console.log("Set is_pro=true for", user.id);
   }
 
   return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });

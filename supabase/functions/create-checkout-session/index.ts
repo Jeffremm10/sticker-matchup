@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
     "mode": "payment",
-    "success_url": `${app_url}/swipe?payment_success=1&product=${product_id}`,
+    "success_url": `${app_url}/swipe?payment_success=1&product=${product_id}&session_id={CHECKOUT_SESSION_ID}`,
     "cancel_url": `${app_url}/swipe`,
     "client_reference_id": user.id,
     "metadata[product_id]": product_id,

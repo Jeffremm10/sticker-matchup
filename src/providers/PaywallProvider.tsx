@@ -63,9 +63,10 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment_success") !== "1") return;
     const productId = params.get("product") ?? "lifetime_pass";
+    const sessionId = params.get("session_id");
     window.history.replaceState({}, "", window.location.pathname);
     toast.info("Verifying payment…");
-    supabase.functions.invoke("verify-stripe-session", { body: { product_id: productId } })
+    supabase.functions.invoke("verify-stripe-session", { body: { product_id: productId, session_id: sessionId } })
       .then(({ data }) => {
         if (data?.ok) {
           toast.success(productId === "lifetime_pass" ? "Lifetime Pass unlocked! 🎉" : "Purchase complete!");
