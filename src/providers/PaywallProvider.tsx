@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { configureIAP, getOfferings, purchase, restorePurchases, isNative } from "@/lib/iap";
 
 export type ProductId = "lifetime_pass" | "nudge" | "super_swipe" | "final_10";
 
@@ -55,8 +56,28 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   const { data: profile } = useProfile();
   const [open, setOpen] = useState(false);
   const [product, setProduct] = useState<ProductId | null>(null);
+  const [onIOS, setOnIOS] = useState(false);
+  const [livePrice, setLivePrice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+
+  // Configure RevenueCat on login, detect iOS
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const native = await isNative();
+      if (native) {
+        await configureIAP(user.id);
+        // Check if iOS specifically
+        try {
+          const capName = "@capacitor/core";
+          // @ts-ignore
+          const cap = (await import(/* @vite-ignore */ capName)).Capacitor;
+          setOnIOS(cap?.getPlatform?.() === "ios");
+        } catch { setOnIOS(false); }
+      }
+    })();
+  }, [user]);
 
   // After Stripe redirects back, verify payment and unlock
   useEffect(() => {
@@ -77,7 +98,7 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
       });
   }, []); // eslint-disable-line
 
-  const fetchCheckoutUrl = useCallback(async (p: ProductId) => {
+  const fetchStripeUrl = useCallback(async (p: ProductId) => {
     const { data, error } = await supabase.functions.invoke("create-checkout-session", {
       body: { product_id: p, app_url: window.location.origin },
     });
@@ -92,14 +113,59 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
     }
     setProduct(p);
     setCheckoutUrl(null);
+    setLivePrice(null);
     setOpen(true);
-    fetchCheckoutUrl(p);
-  }, [profile?.is_pro, fetchCheckoutUrl]);
+
+    if (onIOS) {
+      // iOS: load live price from RevenueCat
+      getOfferings().then((offerings) => {
+        if (offerings[p]?.price) setLivePrice(offerings[p].price);
+      });
+    } else {
+      // Web / Android: pre-fetch Stripe checkout URL
+      fetchStripeUrl(p);
+    }
+  }, [profile?.is_pro, onIOS, fetchStripeUrl]);
 
   const closePaywall = useCallback(() => setOpen(false), []);
 
+  // iOS purchase via RevenueCat / Apple IAP
+  const buyWithIAP = async () => {
+    if (!product || !user) return;
+    setBusy(true);
+    try {
+      const r = await purchase(product);
+      if (r.ok) {
+        await supabase.functions.invoke("verify-purchase", { body: { product_id: product } });
+        toast.success("Purchase complete!");
+        qc.invalidateQueries({ queryKey: ["profile", user.id] });
+        setOpen(false);
+      } else if ("cancelled" in r && r.cancelled) {
+        // user cancelled — no toast
+      } else {
+        toast.error(("error" in r && r.error) || "Purchase failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restoreIAP = async () => {
+    setBusy(true);
+    const r = await restorePurchases();
+    setBusy(false);
+    if (r.ok) {
+      await supabase.functions.invoke("verify-purchase", { body: { product_id: "lifetime_pass" } });
+      qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+      toast.success("Restored!");
+    } else {
+      toast.error(("error" in r && r.error) || "Nothing to restore");
+    }
+  };
+
   const c = product ? COPY[product] : null;
   const Icon = c?.icon ?? Sparkles;
+  const displayPrice = livePrice ?? c?.price;
 
   return (
     <PaywallCtx.Provider value={{ showPaywall, closePaywall }}>
@@ -129,23 +195,36 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
                 ))}
               </div>
 
-              {checkoutUrl ? (
-                <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="w-full"
-                  onClick={() => setOpen(false)}>
-                  <Button size="lg" className="w-full font-black text-base">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Pay now — {c.price}
+              {onIOS ? (
+                <>
+                  <Button size="lg" disabled={busy} className="w-full font-black text-base" onClick={buyWithIAP}>
+                    {busy ? "Processing…" : `Unlock — ${displayPrice}`}
                   </Button>
-                </a>
+                  <Button variant="ghost" size="sm" className="w-full mt-2" onClick={restoreIAP} disabled={busy}>
+                    Restore purchases
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground text-center mt-2">
+                    Billed via Apple. Manage in your App Store account.
+                  </p>
+                </>
+              ) : checkoutUrl ? (
+                <>
+                  <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="w-full"
+                    onClick={() => setOpen(false)}>
+                    <Button size="lg" className="w-full font-black text-base">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Pay now — {displayPrice}
+                    </Button>
+                  </a>
+                  <p className="text-[10px] text-muted-foreground text-center mt-2">
+                    Secure payment via Stripe. Opens in a new tab.
+                  </p>
+                </>
               ) : (
                 <Button size="lg" disabled className="w-full font-black text-base">
                   Loading…
                 </Button>
               )}
-
-              <p className="text-[10px] text-muted-foreground text-center mt-2">
-                Secure payment via Stripe. Opens in a new tab.
-              </p>
             </>
           )}
         </SheetContent>
