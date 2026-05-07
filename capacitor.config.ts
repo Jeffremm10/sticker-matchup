@@ -12,6 +12,9 @@ const config: CapacitorConfig = {
       launchShowDuration: 0,
     },
   },
+  ios: {
+    scheme: "io.swapstrat.app",
+  },
 };
 
 export default config;
