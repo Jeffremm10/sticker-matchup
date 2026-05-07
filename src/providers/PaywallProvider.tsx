@@ -75,6 +75,17 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
     })();
   }, [user]);
 
+  // Detect successful Stripe return
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment_success") === "1") {
+      const product = params.get("product");
+      toast.success(product === "lifetime_pass" ? "Lifetime Pass unlocked!" : "Purchase complete!");
+      qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   const showPaywall = useCallback((p: ProductId) => {
     setProduct(p);
     setLivePrice(null);
@@ -87,30 +98,33 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
         if (offerings[p]?.price) setLivePrice(offerings[p].price);
       }
     });
-  }, []);
+    // Pre-fetch Stripe URL immediately so button is ready
+    if (STRIPE_ENABLED && user) {
+      supabase.functions.invoke("create-checkout-session", {
+        body: { product_id: p, app_url: window.location.origin },
+      }).then(({ data, error }) => {
+        if (!error && data?.url) setCheckoutUrl(data.url);
+      });
+    }
+  }, [user]);
 
   const closePaywall = useCallback(() => setOpen(false), []);
 
-  const loadStripeUrl = async () => {
-    if (!product || !user) return;
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-        body: { product_id: product, app_url: window.location.origin },
-      });
-      console.log("checkout invoke result:", JSON.stringify({ data, error }));
-      if (error || !data?.url) throw new Error(error?.message || `No URL in response: ${JSON.stringify(data)}`);
-      setCheckoutUrl(data.url);
-    } catch (err: any) {
-      toast.error(err.message || "Checkout failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const buy = async () => {
     if (!product || !user) return;
-    if (STRIPE_ENABLED) return loadStripeUrl();
+    if (STRIPE_ENABLED) {
+      // URL already pre-fetched — if not ready yet, fetch now
+      if (!checkoutUrl) {
+        setBusy(true);
+        const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+          body: { product_id: product, app_url: window.location.origin },
+        });
+        setBusy(false);
+        if (error || !data?.url) { toast.error("Could not create checkout"); return; }
+        setCheckoutUrl(data.url);
+      }
+      return;
+    }
     setBusy(true);
     try {
       const r = await purchase(product);
