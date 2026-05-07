@@ -665,12 +665,12 @@ export type Database = {
         Args: never
         Returns: {
           anon_id: string
+          display_name: string
           distance_km: number
           give_count: number
           give_ids: number[]
           is_pro: boolean
-          liker_display_name: string
-          liker_id: string
+          real_user_id: string
           receive_count: number
           receive_ids: number[]
         }[]
