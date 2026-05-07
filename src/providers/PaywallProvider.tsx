@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, ReactNode 
 import { useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Crown, Zap, Compass, Trophy, ExternalLink } from "lucide-react";
+import { Sparkles, Crown, Zap, Compass, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -209,15 +209,12 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
                 </>
               ) : checkoutUrl ? (
                 <>
-                  <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="w-full"
-                    onClick={() => setOpen(false)}>
-                    <Button size="lg" className="w-full font-black text-base">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Pay now — {displayPrice}
-                    </Button>
-                  </a>
+                  <Button size="lg" className="w-full font-black text-base"
+                    onClick={() => { setOpen(false); window.location.href = checkoutUrl; }}>
+                    Pay now — {displayPrice}
+                  </Button>
                   <p className="text-[10px] text-muted-foreground text-center mt-2">
-                    Secure payment via Stripe. Opens in a new tab.
+                    Secure payment via Stripe.
                   </p>
                 </>
               ) : (
