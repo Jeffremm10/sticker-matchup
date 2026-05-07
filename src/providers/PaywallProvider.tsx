@@ -1,28 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Smartphone, Crown, Zap, Compass, Trophy, ExternalLink } from "lucide-react";
+import { Sparkles, Crown, Zap, Compass, Trophy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { configureIAP, getOfferings, purchase, restorePurchases, isNative } from "@/lib/iap";
 
-const STRIPE_ENABLED = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-
-export type ProductId =
-  | "lifetime_pass"
-  | "nudge"
-  | "super_swipe"
-  | "final_10";
+export type ProductId = "lifetime_pass" | "nudge" | "super_swipe" | "final_10";
 
 const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string[]; price: string; icon: any; color: string }> = {
   lifetime_pass: {
     title: "SwapStrat Lifetime Pass",
     subtitle: "One payment. Forever.",
-    bullets: ["Unlimited swipes", "See who likes you", "Priority placement (3× boost)", "PRO badge"],
-    price: "$14.99",
+    bullets: ["Unlimited swipes", "Unlimited nudges", "Unlimited super swipes", "PRO badge"],
+    price: "CHF 14.99",
     icon: Crown,
     color: "from-amber-500 to-orange-500",
   },
@@ -30,7 +23,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
     title: "Super Swaps · 3-pack",
     subtitle: "Skip the swipe queue",
     bullets: ["Send a direct message — no match needed", "3 Super Swaps", "Stand out from the crowd"],
-    price: "$2.99",
+    price: "CHF 2.99",
     icon: Zap,
     color: "from-blue-500 to-cyan-500",
   },
@@ -38,7 +31,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
     title: "Nudge · Find a top match",
     subtitle: "Algorithm picks one for you",
     bullets: ["Reveal a hand-picked collector nearby", "Filtered for ≥5 stickers you need", "1 use"],
-    price: "$2.99",
+    price: "CHF 2.99",
     icon: Compass,
     color: "from-violet-500 to-fuchsia-500",
   },
@@ -46,7 +39,7 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
     title: "Final 10 Insurance",
     subtitle: "Finish the album",
     bullets: ["Match only with collectors who hold your last cards", "Priority distribution worldwide", "Until you complete"],
-    price: "$4.99",
+    price: "CHF 4.99",
     icon: Trophy,
     color: "from-emerald-500 to-teal-500",
   },
@@ -54,7 +47,6 @@ const COPY: Record<ProductId, { title: string; subtitle: string; bullets: string
 
 type Ctx = { showPaywall: (p: ProductId) => void; closePaywall: () => void };
 const PaywallCtx = createContext<Ctx>({ showPaywall: () => {}, closePaywall: () => {} });
-
 export const usePaywall = () => useContext(PaywallCtx);
 
 export function PaywallProvider({ children }: { children: ReactNode }) {
@@ -63,36 +55,33 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
   const { data: profile } = useProfile();
   const [open, setOpen] = useState(false);
   const [product, setProduct] = useState<ProductId | null>(null);
-  const [native, setNative] = useState(false);
-  const [livePrice, setLivePrice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
-  // Configure SDK on login
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const ok = await configureIAP(user.id);
-      setNative(ok);
-    })();
-  }, [user]);
-
-  // Detect successful Stripe return — verify with server and unlock
+  // After Stripe redirects back, verify payment and unlock
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment_success") !== "1") return;
-    const product = params.get("product") ?? "lifetime_pass";
+    const productId = params.get("product") ?? "lifetime_pass";
     window.history.replaceState({}, "", window.location.pathname);
     toast.info("Verifying payment…");
-    supabase.functions.invoke("verify-stripe-session", { body: { product_id: product } })
+    supabase.functions.invoke("verify-stripe-session", { body: { product_id: productId } })
       .then(({ data }) => {
         if (data?.ok) {
-          toast.success(product === "lifetime_pass" ? "Lifetime Pass unlocked! 🎉" : "Purchase complete!");
+          toast.success(productId === "lifetime_pass" ? "Lifetime Pass unlocked! 🎉" : "Purchase complete!");
           qc.invalidateQueries({ queryKey: ["profile", user?.id] });
         } else {
-          toast.error("Payment not confirmed yet — try again in a moment.");
+          toast.error("Could not verify payment — contact support.");
         }
       });
+  }, []); // eslint-disable-line
+
+  const fetchCheckoutUrl = useCallback(async (p: ProductId) => {
+    const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+      body: { product_id: p, app_url: window.location.origin },
+    });
+    if (!error && data?.url) setCheckoutUrl(data.url);
+    else toast.error("Could not load checkout. Try again.");
   }, []);
 
   const showPaywall = useCallback((p: ProductId) => {
@@ -101,77 +90,12 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
       return;
     }
     setProduct(p);
-    setLivePrice(null);
     setCheckoutUrl(null);
     setOpen(true);
-    isNative().then(async (n) => {
-      setNative(n);
-      if (n) {
-        const offerings = await getOfferings();
-        if (offerings[p]?.price) setLivePrice(offerings[p].price);
-      }
-    });
-    // Pre-fetch Stripe URL immediately so button is ready
-    if (STRIPE_ENABLED && user) {
-      supabase.functions.invoke("create-checkout-session", {
-        body: { product_id: p, app_url: window.location.origin },
-      }).then(({ data, error }) => {
-        if (!error && data?.url) setCheckoutUrl(data.url);
-      });
-    }
-  }, [user]);
+    fetchCheckoutUrl(p);
+  }, [profile?.is_pro, fetchCheckoutUrl]);
 
   const closePaywall = useCallback(() => setOpen(false), []);
-
-  const buy = async () => {
-    if (!product || !user) return;
-    if (STRIPE_ENABLED) {
-      // URL already pre-fetched — if not ready yet, fetch now
-      if (!checkoutUrl) {
-        setBusy(true);
-        const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-          body: { product_id: product, app_url: window.location.origin },
-        });
-        setBusy(false);
-        if (error || !data?.url) { toast.error("Could not create checkout"); return; }
-        setCheckoutUrl(data.url);
-      }
-      return;
-    }
-    setBusy(true);
-    try {
-      const r = await purchase(product);
-      if (r.ok) {
-        await supabase.functions.invoke("verify-purchase", { body: { product_id: product } });
-        toast.success("Purchase complete!");
-        qc.invalidateQueries({ queryKey: ["profile", user.id] });
-        setOpen(false);
-      } else if ("cancelled" in r && r.cancelled) {
-        // user cancelled
-      } else {
-        toast.error(("error" in r && r.error) || "Purchase failed");
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const restore = async () => {
-    if (STRIPE_ENABLED) {
-      toast.info("Purchases are linked to your account — just sign in to restore.");
-      return;
-    }
-    setBusy(true);
-    const r = await restorePurchases();
-    setBusy(false);
-    if (r.ok) {
-      await supabase.functions.invoke("verify-purchase", { body: { product_id: "lifetime_pass" } });
-      qc.invalidateQueries({ queryKey: ["profile", user?.id] });
-      toast.success("Restored");
-    } else {
-      toast.error(("error" in r && r.error) || "Nothing to restore");
-    }
-  };
 
   const c = product ? COPY[product] : null;
   const Icon = c?.icon ?? Sparkles;
@@ -194,6 +118,7 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
                   </div>
                 </div>
               </div>
+
               <div className="py-5 space-y-3">
                 {c.bullets.map((b) => (
                   <div key={b} className="flex items-start gap-2 text-sm">
@@ -202,45 +127,24 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
                   </div>
                 ))}
               </div>
-              {STRIPE_ENABLED && checkoutUrl ? (
-                <a
-                  href={checkoutUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full"
-                  onClick={() => {
-                    setTimeout(() => qc.invalidateQueries({ queryKey: ["profile", user?.id] }), 10000);
-                    setOpen(false);
-                  }}
-                >
+
+              {checkoutUrl ? (
+                <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="w-full"
+                  onClick={() => setOpen(false)}>
                   <Button size="lg" className="w-full font-black text-base">
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Pay now — {livePrice ?? c.price}
+                    Pay now — {c.price}
                   </Button>
                 </a>
               ) : (
-                <Button
-                  size="lg"
-                  disabled={busy}
-                  className="w-full font-black text-base"
-                  onClick={buy}
-                >
-                  {busy ? "Loading…" : `Unlock — ${livePrice ?? c.price}`}
+                <Button size="lg" disabled className="w-full font-black text-base">
+                  Loading…
                 </Button>
               )}
-              {STRIPE_ENABLED && (
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  Secure payment via Stripe. Opens in a new tab.
-                </p>
-              )}
-              <Button variant="ghost" size="sm" className="w-full mt-2" onClick={restore} disabled={busy}>
-                Restore purchases
-              </Button>
-              {!STRIPE_ENABLED && (
-                <p className="text-[10px] text-muted-foreground text-center mt-3">
-                  Billed via Apple/Google. Cancel anytime in your store account.
-                </p>
-              )}
+
+              <p className="text-[10px] text-muted-foreground text-center mt-2">
+                Secure payment via Stripe. Opens in a new tab.
+              </p>
             </>
           )}
         </SheetContent>
