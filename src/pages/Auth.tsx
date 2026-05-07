@@ -107,24 +107,23 @@ export default function Auth() {
           A collection manager with social discovery.
         </p>
 
-        <div className="mt-6 pt-4 border-t border-border text-left">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-            Dev: Test the swiping
-          </p>
-          <Button variant="outline" size="sm" className="w-full mb-2" onClick={seed} disabled={busy}>
-            Create / refresh test users
-          </Button>
-          <div className="grid grid-cols-2 gap-2">
-            {TEST_USERS.map((t) => (
-              <Button key={t.email} variant="secondary" size="sm" onClick={() => loginAs(t.email)} disabled={busy}>
-                {t.label}
-              </Button>
-            ))}
+        {import.meta.env.DEV && (
+          <div className="mt-6 pt-4 border-t border-border text-left">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+              Dev: Test the swiping
+            </p>
+            <Button variant="outline" size="sm" className="w-full mb-2" onClick={seed} disabled={busy}>
+              Create / refresh test users
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              {TEST_USERS.map((t) => (
+                <Button key={t.email} variant="secondary" size="sm" onClick={() => loginAs(t.email)} disabled={busy}>
+                  {t.label}
+                </Button>
+              ))}
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            Open multiple browsers/incognito windows and log in as different test users to swipe and match between them.
-          </p>
-        </div>
+        )}
       </Card>
     </div>
   );

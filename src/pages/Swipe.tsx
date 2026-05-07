@@ -224,8 +224,8 @@ export default function Swipe() {
         </div>
       </header>
 
-      {/* Upgrade banner — above the card so it's always visible */}
-      {top && (
+      {/* Upgrade banner — only for non-pro users */}
+      {top && !isPremium && (
         <div className="px-4 pb-2">
           <button
             onClick={() => showPaywall("lifetime_pass")}
