@@ -42,10 +42,18 @@ export default function Matches() {
         .eq("receiver_id", user!.id)
         .order("created_at", { ascending: false });
       if (!msgs?.length) return [];
-      const senderIds = Array.from(new Set(msgs.map((m: any) => m.sender_id)));
+
+      // Exclude senders already matched
+      const { data: matches } = await supabase.from("matches").select("user_a,user_b")
+        .or(`user_a.eq.${user!.id},user_b.eq.${user!.id}`);
+      const matchedIds = new Set((matches ?? []).map((m: any) => m.user_a === user!.id ? m.user_b : m.user_a));
+      const filtered = msgs.filter((m: any) => !matchedIds.has(m.sender_id));
+
+      if (!filtered.length) return [];
+      const senderIds = Array.from(new Set(filtered.map((m: any) => m.sender_id)));
       const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", senderIds);
       const pmap = new Map((profs ?? []).map((p: any) => [p.id, p]));
-      return msgs.map((m: any) => ({ ...m, sender: pmap.get(m.sender_id) }));
+      return filtered.map((m: any) => ({ ...m, sender: pmap.get(m.sender_id) }));
     },
   });
 
