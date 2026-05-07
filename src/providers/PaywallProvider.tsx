@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Sparkles, Smartphone, Crown, Zap, Compass, Trophy, ExternalLink } from 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { configureIAP, getOfferings, purchase, restorePurchases, isNative } from "@/lib/iap";
 
 const STRIPE_ENABLED = !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
@@ -59,7 +60,7 @@ export const usePaywall = () => useContext(PaywallCtx);
 export function PaywallProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const profile = qc.getQueryData<{ is_pro?: boolean }>(["profile", user?.id]);
+  const { data: profile } = useProfile();
   const [open, setOpen] = useState(false);
   const [product, setProduct] = useState<ProductId | null>(null);
   const [native, setNative] = useState(false);
