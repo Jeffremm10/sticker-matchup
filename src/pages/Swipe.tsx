@@ -144,9 +144,24 @@ export default function Swipe() {
       return;
     }
     qc.invalidateQueries({ queryKey: ["profile", user?.id] });
-    qc.invalidateQueries({ queryKey: ["deck"] });
     const r: any = (data as any)?.[0];
-    toast.success(r?.display_name ? `Top match: ${r.display_name} (+${r.receive_count} for you)` : "Nudge used");
+    if (!r?.user_id) { toast.info("No new matches nearby to nudge"); return; }
+
+    // Move the nudged user to the front of the deck
+    qc.setQueryData(["deck", maxKm, !!me?.is_final_10_active], (old: any[] = []) => {
+      const idx = old.findIndex((c) => c.user_id === r.user_id);
+      if (idx > 0) {
+        const reordered = [...old];
+        const [nudged] = reordered.splice(idx, 1);
+        return [nudged, ...reordered];
+      }
+      if (idx === 0) return old; // already on top
+      // Not in deck yet — refetch and they'll appear
+      qc.invalidateQueries({ queryKey: ["deck"] });
+      return old;
+    });
+
+    toast.success(`${r.display_name} is now at the top — they have ${r.receive_count} stickers you need!`);
   };
 
   if (isLoading) return <AppShell><div className="p-8 text-center">Loading deck…</div></AppShell>;
