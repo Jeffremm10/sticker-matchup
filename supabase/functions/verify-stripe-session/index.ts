@@ -60,9 +60,20 @@ Deno.serve(async (req) => {
   }, { onConflict: "stripe_session_id" });
 
   if (product_id === "lifetime_pass") {
-    const { error } = await admin.from("profiles").update({ is_pro: true }).eq("id", user.id);
-    if (error) console.error("Failed to set is_pro:", error.message);
-    else console.log("Set is_pro=true for", user.id);
+    await admin.from("profiles").update({ is_pro: true }).eq("id", user.id);
+    console.log("Set is_pro=true for", user.id);
+  } else if (product_id === "final_10") {
+    await admin.from("profiles").update({ is_final_10_active: true }).eq("id", user.id);
+    console.log("Set is_final_10_active=true for", user.id);
+  } else if (product_id === "nudge") {
+    await admin.from("profiles")
+      .update({ nudge_count: (await admin.from("profiles").select("nudge_count").eq("id", user.id).single()).data?.nudge_count + 1 })
+      .eq("id", user.id);
+    console.log("Added nudge for", user.id);
+  } else if (product_id === "super_swipe") {
+    const cur = (await admin.from("profiles").select("super_swap_count").eq("id", user.id).single()).data?.super_swap_count ?? 0;
+    await admin.from("profiles").update({ super_swap_count: cur + 3 }).eq("id", user.id);
+    console.log("Added 3 super swaps for", user.id);
   }
 
   return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
