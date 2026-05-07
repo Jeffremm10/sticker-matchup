@@ -42,6 +42,7 @@ export default function Album() {
     if (
       stats.owned >= threshold &&
       !profile.is_final_10_active &&
+      !profile.is_pro &&
       !sessionStorage.getItem("final10_prompted")
     ) {
       sessionStorage.setItem("final10_prompted", "1");

@@ -25,7 +25,7 @@ export function ProgressDashboard({ profile }: { profile: any }) {
   const owned = counts?.owned ?? 0;
   const threshold = Math.max(total - 10, 0);
   const reached = total > 0 && owned >= threshold;
-  const active = !!profile?.is_final_10_active;
+  const active = !!(profile?.is_final_10_active || profile?.is_pro);
 
   return (
     <div className="space-y-3">
@@ -35,7 +35,7 @@ export function ProgressDashboard({ profile }: { profile: any }) {
             <Trophy className="w-5 h-5 text-emerald-500" />
             <h3 className="font-black">Progress to Complete</h3>
           </div>
-          {profile?.tier === "premium" && (
+          {(profile?.is_pro || profile?.tier === "premium") && (
             <Badge className="bg-amber-500 text-white"><Crown className="w-3 h-3 mr-1" />Lifetime</Badge>
           )}
         </div>
@@ -45,14 +45,16 @@ export function ProgressDashboard({ profile }: { profile: any }) {
           <span>{Math.max(total - owned, 0)} to go</span>
         </div>
 
-        {active ? (
+        {active && reached ? (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-sm">
-            <Badge className="bg-emerald-500 text-white mb-1">Active</Badge>
+            <Badge className="bg-emerald-500 text-white mb-1">
+              {profile?.is_pro ? "Included in Lifetime Pass" : "Active"}
+            </Badge>
             <p className="text-xs text-muted-foreground">
               You're being matched with collectors who hold your last cards.
             </p>
           </div>
-        ) : reached ? (
+        ) : reached && !active ? (
           <Button
             size="lg"
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black"
