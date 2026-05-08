@@ -77,7 +77,7 @@ export default function Meet() {
   const [nominateDialog, setNominateDialog] = useState(false);
   const [nominateName, setNominateName] = useState("");
   const [nominateAddress, setNominateAddress] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState(profile?.emergency_contact ?? "");
+  const [emergencyContact, setEmergencyContact] = useState("");
   const [activeCheckin, setActiveCheckin] = useState<{ id: string; venueId: string; startedAt: Date } | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [busyAction, setBusyAction] = useState(false);
@@ -220,9 +220,6 @@ export default function Meet() {
     if (!selectedVenue || !user) return;
     setBusyAction(true);
     const ec = emergencyContact.trim() || null;
-    if (ec) {
-      await supabase.from("profiles").update({ emergency_contact: ec }).eq("id", user.id);
-    }
     const { data, error } = await supabase.from("check_ins")
       .insert({ user_id: user.id, venue_id: selectedVenue.id, emergency_contact: ec, status: "active" })
       .select("id").single();
