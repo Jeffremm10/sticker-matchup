@@ -116,3 +116,14 @@ All colors MUST be HSL.
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* Hide Lovable platform badge */
+#lovable-badge,
+.lovable-badge,
+[data-lovable-badge],
+a[href*="lovable.app"][style*="position: fixed"],
+a[href*="lovable.app"][style*="position:fixed"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
