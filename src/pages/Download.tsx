@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Smartphone, Apple, Download, Bell } from "lucide-react";
 
-const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/download/app-release.apk";
+const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/download/swapstrat.apk";
 
 export default function DownloadPage() {
   return (
