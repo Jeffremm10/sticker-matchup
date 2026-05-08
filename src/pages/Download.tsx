@@ -10,7 +10,7 @@ function InstallGuide({ onClose }: { onClose: () => void }) {
   const steps = [
     { icon: "📥", title: "Download started", body: 'If Chrome asked about "harmful file", tap Download anyway.' },
     { icon: "⚙️", title: "Allow installation", body: 'If Chrome says "not allowed to install unknown apps", tap Settings → enable Install unknown apps → go back and tap the file again.' },
-    { icon: "📂", title: "Open the file", body: "Pull down your notification bar and tap the SwapStrat download. Or open your Files / Downloads app and tap swapstrat.apk." },
+    { icon: "📂", title: "Open the file", body: "A download bar appears at the bottom of Chrome when it finishes — tap Open. Or open your Files / Downloads app and tap swapstrat.apk." },
     { icon: "✅", title: "Tap Install", body: "Follow the Android install prompt and tap Install. Takes a few seconds." },
   ];
 
@@ -142,13 +142,20 @@ export default function DownloadPage() {
               </div>
               <h2 className="text-2xl font-black mb-1">Android</h2>
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
-              <a
-                href={APK_URL}
-                onClick={() => setTimeout(() => setShowGuide(true), 800)}
+              <button
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = APK_URL;
+                  a.download = "swapstrat.apk";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setShowGuide(true);
+                }}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
-              </a>
+              </button>
               <p className="text-xs text-muted-foreground text-center mt-3">
                 Free · No account required to browse
               </p>
