@@ -79,28 +79,59 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
     })();
   }, [user]);
 
-  // After Stripe redirects back, verify payment and unlock
+  // Verify payment from Stripe redirect (web) or deep link (native)
+  const verifyPayment = useCallback(async (productId: string, sessionId: string | null) => {
+    toast.info("Verifying payment…");
+    const { data } = await supabase.functions.invoke("verify-stripe-session", {
+      body: { product_id: productId, session_id: sessionId },
+    });
+    if (data?.ok) {
+      toast.success(productId === "lifetime_pass" ? "Lifetime Pass unlocked! 🎉" : "Purchase complete!");
+      qc.invalidateQueries({ queryKey: ["profile", user?.id] });
+    } else {
+      toast.error("Could not verify payment — contact support.");
+    }
+  }, [qc, user?.id]);
+
+  // Web: Stripe redirects back with ?payment_success=1
+  // Guard with user — on Android the success URL loads inside Chrome Custom Tab where
+  // there is no session, causing a spurious "couldn't verify" toast. The native path
+  // (browserFinished listener below) handles verification for Android.
   useEffect(() => {
+    if (!user) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment_success") !== "1") return;
     const productId = params.get("product") ?? "lifetime_pass";
     const sessionId = params.get("session_id");
     window.history.replaceState({}, "", window.location.pathname);
-    toast.info("Verifying payment…");
-    supabase.functions.invoke("verify-stripe-session", { body: { product_id: productId, session_id: sessionId } })
-      .then(({ data }) => {
-        if (data?.ok) {
-          toast.success(productId === "lifetime_pass" ? "Lifetime Pass unlocked! 🎉" : "Purchase complete!");
-          qc.invalidateQueries({ queryKey: ["profile", user?.id] });
-        } else {
-          toast.error("Could not verify payment — contact support.");
-        }
-      });
-  }, []); // eslint-disable-line
+    verifyPayment(productId, sessionId);
+  }, [user]); // eslint-disable-line
+
+  // Native: Stripe redirects to io.swapstrat.app://payment-return?...
+  useEffect(() => {
+    let listener: any;
+    (async () => {
+      try {
+        const { App } = await import("@capacitor/app");
+        listener = await App.addListener("appUrlOpen", ({ url }) => {
+          if (!url.startsWith("io.swapstrat.app://payment-return")) return;
+          const search = url.split("?")[1] ?? "";
+          const p = new URLSearchParams(search);
+          if (p.get("payment_success") === "1") {
+            verifyPayment(p.get("product") ?? "lifetime_pass", p.get("session_id"));
+          }
+        });
+      } catch { /* not native */ }
+    })();
+    return () => { listener?.remove(); };
+  }, [verifyPayment]);
+
 
   const fetchStripeUrl = useCallback(async (p: ProductId) => {
+    const isNative = window.location.hostname === "localhost";
+    const app_url = isNative ? "https://swap-n-stack.lovable.app" : window.location.origin;
     const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-      body: { product_id: p, app_url: window.location.origin },
+      body: { product_id: p, app_url, native: isNative },
     });
     if (!error && data?.url) setCheckoutUrl(data.url);
     else toast.error("Could not load checkout. Try again.");
@@ -210,7 +241,25 @@ export function PaywallProvider({ children }: { children: ReactNode }) {
               ) : checkoutUrl ? (
                 <>
                   <Button size="lg" className="w-full font-black text-base"
-                    onClick={() => { setOpen(false); window.location.href = checkoutUrl; }}>
+                    onClick={async () => {
+                      setOpen(false);
+                      if (window.location.hostname === "localhost") {
+                        // Native: open Stripe in Chrome Custom Tab.
+                        // Extract the session ID from the checkout URL upfront so we
+                        // can verify payment when the browser closes — no redirect needed.
+                        const m = checkoutUrl.match(/\/(cs_(?:test|live)_[^#?/]+)/);
+                        const sessionId = m?.[1] ?? null;
+                        const pendingProduct = product ?? "lifetime_pass";
+                        const { Browser } = await import("@capacitor/browser");
+                        const bl = await Browser.addListener("browserFinished", async () => {
+                          await bl.remove();
+                          await verifyPayment(pendingProduct, sessionId);
+                        });
+                        await Browser.open({ url: checkoutUrl });
+                      } else {
+                        window.location.href = checkoutUrl;
+                      }
+                    }}>
                     Pay now — {displayPrice}
                   </Button>
                   <p className="text-[10px] text-muted-foreground text-center mt-2">

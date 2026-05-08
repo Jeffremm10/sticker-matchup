@@ -32,8 +32,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "unauth" }), { status: 401, headers: corsHeaders });
   }
 
-  const { product_id, app_url } = await req.json();
-  console.log("Creating checkout for", product_id, "user", user.id, "app_url", app_url);
+  const { product_id, app_url, native } = await req.json();
+  console.log("Creating checkout for", product_id, "user", user.id, "app_url", app_url, "native", native);
 
   // Block duplicate lifetime pass purchase
   if (product_id === "lifetime_pass") {
@@ -59,7 +59,9 @@ Deno.serve(async (req) => {
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
     "mode": "payment",
-    "success_url": `${app_url}/swipe?payment_success=1&product=${product_id}&session_id={CHECKOUT_SESSION_ID}`,
+    "success_url": native
+      ? `${Deno.env.get("SUPABASE_URL")}/functions/v1/payment-redirect?payment_success=1&product=${product_id}&session_id={CHECKOUT_SESSION_ID}`
+      : `${app_url}/swipe?payment_success=1&product=${product_id}&session_id={CHECKOUT_SESSION_ID}`,
     "cancel_url": `${app_url}/swipe`,
     "client_reference_id": user.id,
     "metadata[product_id]": product_id,
