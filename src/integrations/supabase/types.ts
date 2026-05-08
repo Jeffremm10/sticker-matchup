@@ -185,7 +185,6 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string
-          emergency_contact: string | null
           id: string
           is_final_10_active: boolean
           is_pro: boolean
@@ -207,7 +206,6 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string
-          emergency_contact?: string | null
           id: string
           is_final_10_active?: boolean
           is_pro?: boolean
@@ -229,7 +227,6 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string
-          emergency_contact?: string | null
           id?: string
           is_final_10_active?: boolean
           is_pro?: boolean
