@@ -140,7 +140,6 @@ export default function DownloadPage() {
               {/* Step 2: download */}
               <a
                 href={APK_URL}
-                download="swapstrat.apk"
                 onClick={handleDownload}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
