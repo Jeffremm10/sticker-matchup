@@ -6,43 +6,20 @@ import { toast } from "sonner";
 
 const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/download/swapstrat.apk";
 
-async function downloadWithNotification() {
-  // Trigger the download
-  const a = document.createElement("a");
-  a.href = APK_URL;
-  a.download = "swapstrat.apk";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
+async function requestInstallNotification() {
   if (!("Notification" in window)) return;
-
   const permission = Notification.permission === "granted"
     ? "granted"
     : await Notification.requestPermission();
-
   if (permission !== "granted") return;
-
-  // Fire immediately so they see it in the notification bar
-  new Notification("SwapStrat is downloading…", {
-    body: "When the download finishes, tap this notification to install.",
-    icon: "/favicon.ico",
-    tag: "swapstrat-download",
-  });
-
-  // Fire again after ~8s when download is likely done
   setTimeout(() => {
-    const n = new Notification("SwapStrat — ready to install", {
-      body: 'Open Files → Downloads → tap swapstrat.apk → Install',
+    new Notification("SwapStrat downloaded", {
+      body: "Tap the download bar at the bottom of your browser, then tap Install.",
       icon: "/favicon.ico",
       tag: "swapstrat-install",
       requireInteraction: true,
     });
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-  }, 8000);
+  }, 5000);
 }
 
 function InstallGuide({ onClose }: { onClose: () => void }) {
@@ -184,20 +161,22 @@ export default function DownloadPage() {
               <h2 className="text-2xl font-black mb-1">Android</h2>
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
 
-              <button
-                onClick={downloadWithNotification}
+              <a
+                href={APK_URL}
+                download="swapstrat.apk"
+                onClick={requestInstallNotification}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
-              </button>
+              </a>
 
               {/* Always-visible install steps */}
               <div className="mt-5 space-y-3">
                 {[
-                  { title: 'Tap "Download anyway"', body: 'Chrome warns every APK is harmful. Tap Download anyway.' },
-                  { title: 'Enable unknown apps for Chrome', body: 'Chrome shows "not allowed to install". Tap Settings → flip the switch to Allow → tap the back arrow to return to Chrome.' },
-                  { title: 'Open Files → Downloads → swapstrat.apk', body: 'Open your Files or My Files app. Tap Downloads. Tap swapstrat.apk. The Android install screen appears.' },
-                  { title: 'Tap Install', body: 'Tap Install on the Android prompt. Done.' },
+                  { title: 'Tap "Download anyway"', body: 'Your browser warns every APK is harmful. Tap Download anyway.' },
+                  { title: 'Allow your browser to install apps', body: 'If you see "not allowed to install unknown apps", tap Settings → flip the switch to Allow → go back.' },
+                  { title: 'Tap the download bar → Install', body: 'Your browser shows a bar at the bottom when the download finishes. Tap it, then tap Install.' },
+                  { title: 'Done', body: 'SwapStrat is installed. Open it and sign in with Google.' },
                 ].map((step, i) => (
                   <div key={i} className="flex gap-3 items-start">
                     <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-[10px] mt-0.5">
