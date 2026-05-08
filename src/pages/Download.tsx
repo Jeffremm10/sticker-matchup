@@ -1,73 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Smartphone, Apple, Download, Check, X } from "lucide-react";
+import { ArrowLeft, Smartphone, Apple, Download, Check, Bell, BellOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/download/swapstrat.apk";
 
-async function requestInstallNotification() {
-  if (!("Notification" in window)) return;
-  const permission = Notification.permission === "granted"
-    ? "granted"
-    : await Notification.requestPermission();
-  if (permission !== "granted") return;
-  setTimeout(() => {
-    new Notification("SwapStrat downloaded", {
-      body: "Tap the download bar at the bottom of your browser, then tap Install.",
-      icon: "/favicon.ico",
-      tag: "swapstrat-install",
-      requireInteraction: true,
-    });
-  }, 5000);
-}
+function NotificationButton({ onReady }: { onReady: (granted: boolean) => void }) {
+  const [state, setState] = useState<"idle" | "granted" | "denied">("idle");
 
-function InstallGuide({ onClose }: { onClose: () => void }) {
-  const steps = [
-    { n: "1", title: 'Tap "Download anyway"', body: 'Chrome will warn the file might be harmful — this is shown for every APK outside the Play Store. Tap Download anyway.' },
-    { n: "2", title: "Allow Chrome to install apps", body: 'If Chrome says your phone isn\'t allowed to install unknown apps, tap Settings → turn on "Install unknown apps" for Chrome → go back.' },
-    { n: "3", title: "Open the downloaded file", body: "Look for a download bar at the bottom of Chrome — tap Open. Or open your Files app → Downloads → tap swapstrat.apk." },
-    { n: "4", title: "Tap Install", body: "Android will show an install screen. Tap Install and wait a few seconds. Done." },
-  ];
+  useEffect(() => {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") { setState("granted"); onReady(true); }
+    if (Notification.permission === "denied") setState("denied");
+  }, []);
+
+  const request = async () => {
+    if (!("Notification" in window)) { toast.error("Notifications not supported in this browser."); return; }
+    const p = await Notification.requestPermission();
+    if (p === "granted") { setState("granted"); onReady(true); toast.success("Notifications enabled!"); }
+    else { setState("denied"); toast.error("Permission denied — you'll need to find the file in Downloads manually."); }
+  };
+
+  if (state === "granted") return (
+    <div className="flex items-center gap-2 text-xs text-primary font-semibold">
+      <Bell className="w-4 h-4" /> Notifications enabled — we'll ping you when the download is ready to install
+    </div>
+  );
+
+  if (state === "denied") return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <BellOff className="w-4 h-4" /> Notifications blocked — go to browser settings to allow them
+    </div>
+  );
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm"
-      onClick={onClose}
+    <button
+      onClick={request}
+      className="flex items-center gap-2 w-full py-2.5 rounded-xl border border-border text-sm font-semibold hover:border-primary/40 transition-colors"
     >
-      <div
-        className="w-full max-w-md bg-card border border-border rounded-t-2xl md:rounded-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <span className="font-black text-base">How to install</span>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-6 space-y-4">
-          {steps.map((s) => (
-            <div key={s.n} className="flex gap-3 items-start">
-              <span className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
-                {s.n}
-              </span>
-              <div>
-                <p className="font-bold text-sm mb-0.5">{s.title}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="px-6 pb-6">
-          <button
-            onClick={onClose}
-            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
-          >
-            Got it
-          </button>
-        </div>
-      </div>
-    </div>
+      <Bell className="w-4 h-4 text-primary" /> Enable install notification first
+    </button>
   );
 }
 
@@ -80,9 +53,7 @@ function IosWaitlist() {
     e.preventDefault();
     if (!email) return;
     setBusy(true);
-    const { error } = await (supabase as any)
-      .from("ios_waitlist")
-      .insert({ email: email.trim().toLowerCase() });
+    const { error } = await (supabase as any).from("ios_waitlist").insert({ email: email.trim().toLowerCase() });
     setBusy(false);
     if (error?.code === "23505") { toast.info("You're already on the list."); setDone(true); return; }
     if (error) { toast.error("Something went wrong — try again."); return; }
@@ -90,30 +61,20 @@ function IosWaitlist() {
     toast.success("You're on the list!");
   };
 
-  if (done) {
-    return (
-      <div className="flex items-center gap-3 w-full py-3.5 px-4 rounded-xl bg-primary/10 border border-primary/20">
-        <Check className="w-5 h-5 text-primary shrink-0" />
-        <span className="text-sm font-semibold text-primary">You're on the waitlist — we'll email you when iOS launches.</span>
-      </div>
-    );
-  }
+  if (done) return (
+    <div className="flex items-center gap-3 w-full py-3.5 px-4 rounded-xl bg-primary/10 border border-primary/20">
+      <Check className="w-5 h-5 text-primary shrink-0" />
+      <span className="text-sm font-semibold text-primary">You're on the waitlist.</span>
+    </div>
+  );
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 w-full">
-      <input
-        type="email"
-        required
-        placeholder="your@email.com"
-        value={email}
+      <input type="email" required placeholder="your@email.com" value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground"
-      />
-      <button
-        type="submit"
-        disabled={busy}
-        className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50"
-      >
+        className="w-full px-4 py-3 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground" />
+      <button type="submit" disabled={busy}
+        className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50">
         {busy ? "Joining…" : "Join iOS waitlist"}
       </button>
     </form>
@@ -121,13 +82,23 @@ function IosWaitlist() {
 }
 
 export default function DownloadPage() {
-  const [showGuide, setShowGuide] = useState(false);
+  const [notifGranted, setNotifGranted] = useState(false);
+
+  const handleDownload = () => {
+    if (notifGranted) {
+      setTimeout(() => {
+        new Notification("SwapStrat downloaded", {
+          body: "Tap the download bar in your browser and tap Install.",
+          icon: "/favicon.ico",
+          requireInteraction: true,
+        });
+      }, 6000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {showGuide && <InstallGuide onClose={() => setShowGuide(false)} />}
 
-      {/* Nav */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
@@ -154,37 +125,42 @@ export default function DownloadPage() {
           {/* Android */}
           <div className="bg-card border border-primary/30 rounded-2xl overflow-hidden">
             <div className="h-1 bg-primary" />
-            <div className="p-8">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5">
+            <div className="p-8 space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                 <Smartphone className="w-6 h-6 text-primary" />
               </div>
-              <h2 className="text-2xl font-black mb-1">Android</h2>
-              <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
+              <div>
+                <h2 className="text-2xl font-black mb-1">Android</h2>
+                <p className="text-muted-foreground text-sm">Available now · Android 8.0+</p>
+              </div>
 
+              {/* Step 1: enable notification */}
+              <NotificationButton onReady={setNotifGranted} />
+
+              {/* Step 2: download */}
               <a
                 href={APK_URL}
                 download="swapstrat.apk"
-                onClick={requestInstallNotification}
+                onClick={handleDownload}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
               </a>
 
-              {/* Always-visible install steps */}
-              <div className="mt-5 space-y-3">
+              {/* Install steps */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">After tapping download</p>
                 {[
-                  { title: 'Tap "Download anyway"', body: 'Your browser warns every APK is harmful. Tap Download anyway.' },
-                  { title: 'Allow your browser to install apps', body: 'If you see "not allowed to install unknown apps", tap Settings → flip the switch to Allow → go back.' },
-                  { title: 'Tap the download bar → Install', body: 'Your browser shows a bar at the bottom when the download finishes. Tap it, then tap Install.' },
-                  { title: 'Done', body: 'SwapStrat is installed. Open it and sign in with Google.' },
-                ].map((step, i) => (
-                  <div key={i} className="flex gap-3 items-start">
-                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                      {i + 1}
-                    </span>
+                  { n: "1", t: 'Tap "Download anyway"', b: "Your browser warns every APK — this is normal. Tap Download anyway." },
+                  { n: "2", t: "Tap Open in the download bar", b: "A bar appears at the bottom of your browser when done. Tap Open." },
+                  { n: "3", t: 'If blocked: Settings → Allow → Back', b: 'Tap Settings → enable "Allow from this source" → press Back on your phone → tap Open again.' },
+                  { n: "4", t: "Tap Install", b: "The Android install screen appears. Tap Install." },
+                ].map((s) => (
+                  <div key={s.n} className="flex gap-3 items-start">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
                     <div>
-                      <p className="text-xs font-bold text-foreground">{step.title}</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{step.body}</p>
+                      <p className="text-xs font-bold text-foreground">{s.t}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{s.b}</p>
                     </div>
                   </div>
                 ))}
@@ -200,7 +176,7 @@ export default function DownloadPage() {
                 <Apple className="w-6 h-6 text-muted-foreground" />
               </div>
               <h2 className="text-2xl font-black mb-1">iPhone</h2>
-              <p className="text-muted-foreground text-sm mb-6">Coming to the App Store — join the waitlist</p>
+              <p className="text-muted-foreground text-sm mb-6">Coming to the App Store</p>
               <IosWaitlist />
             </div>
           </div>
