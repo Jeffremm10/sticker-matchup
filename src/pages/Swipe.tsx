@@ -150,23 +150,32 @@ export default function Swipe() {
     const r: any = (data as any)?.[0];
     if (!r?.user_id) { toast.info("No new matches nearby to nudge"); return; }
 
-    // Move the nudged user to the front of the deck
-    let nudgedCard: any = null;
+    // Build a full deck card from the nudge result (consume_nudge now returns all needed fields)
+    const nudgeCard: any = {
+      user_id:       r.user_id,
+      display_name:  r.display_name,
+      bio:           r.bio ?? "",
+      lat:           r.lat ?? null,
+      lng:           r.lng ?? null,
+      is_pro:        r.is_pro ?? false,
+      receive_count: r.receive_count ?? 0,
+      give_count:    r.give_count ?? 0,
+      receive_ids:   r.receive_ids ?? [],
+      give_ids:      r.give_ids ?? [],
+      distance_km:   r.distance_km ?? null,
+      swap_count:    0,
+      avg_rating:    0,
+      rating_count:  0,
+      karma:         0,
+    };
+
+    // Always put nudged user at front of deck — splice if already present, prepend if not
     qc.setQueryData(["deck", maxKm, isFinal10], (old: any[] = []) => {
-      const idx = old.findIndex((c) => c.user_id === r.user_id);
-      if (idx > 0) {
-        const reordered = [...old];
-        const [nudged] = reordered.splice(idx, 1);
-        nudgedCard = nudged;
-        return [nudged, ...reordered];
-      }
-      if (idx === 0) { nudgedCard = old[0]; return old; }
-      qc.invalidateQueries({ queryKey: ["deck"] });
-      return old;
+      const filtered = old.filter((c) => c.user_id !== r.user_id);
+      return [nudgeCard, ...filtered];
     });
 
-    const count = nudgedCard?.receive_count ?? r.receive_count;
-    setNudgeResult({ name: r.display_name, receive: count, distance_km: nudgedCard?.distance_km ?? r.distance_km ?? null });
+    setNudgeResult({ name: r.display_name, receive: r.receive_count ?? 0, distance_km: r.distance_km ?? null });
   };
 
   if (isLoading) return <AppShell><div className="p-8 text-center">Loading deck…</div></AppShell>;
