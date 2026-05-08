@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,6 +11,7 @@ import Auth from "./pages/Auth";
 import Album from "./pages/Album";
 import Landing from "./pages/Landing";
 import Download from "./pages/Download";
+import { SplashScreen } from "./components/SplashScreen";
 import OnboardingUsername from "./pages/OnboardingUsername";
 import OnboardingLocation from "./pages/OnboardingLocation";
 import Matches from "./pages/Matches";
@@ -114,9 +116,18 @@ const Protected = ({ children, requireUsername = true }: { children: JSX.Element
   return children;
 };
 
+const isNative = window.location.hostname === "localhost";
+
+function AppWithSplash() {
+  const [splashDone, setSplashDone] = useState(!isNative);
+  if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />;
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <NativeRelay />
+    <AppWithSplash />
     <TooltipProvider>
       <Toaster />
       <Sonner />
