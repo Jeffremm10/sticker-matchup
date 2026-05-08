@@ -21,7 +21,7 @@ export default function Landing() {
           <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a href="#how" className="hover:text-foreground transition-colors">How it works</a>
             <a href="#download" className="hover:text-foreground transition-colors">Download</a>
-            <Link to="/auth" className="hover:text-foreground transition-colors">Sign in</Link>
+            <Link to="/auth" className="hover:text-foreground transition-colors">Use web app</Link>
           </nav>
           <Link
             to="/auth"
@@ -56,7 +56,7 @@ export default function Landing() {
               to="/auth"
               className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-border text-foreground font-medium text-base hover:border-primary/50 transition-colors"
             >
-              Sign in
+              Use web app
             </Link>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function Landing() {
           <span className="font-black text-primary">SwapStrat</span>
           <div className="flex gap-6">
             <Link to="/download" className="hover:text-foreground transition-colors">Download</Link>
-            <Link to="/auth" className="hover:text-foreground transition-colors">Sign in</Link>
+            <Link to="/auth" className="hover:text-foreground transition-colors">Use web app</Link>
             <a href="mailto:martijeffre@gmail.com" className="hover:text-foreground transition-colors">Support</a>
           </div>
           <span>© 2026 SwapStrat</span>
