@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Smartphone, Apple, Download, Check } from "lucide-react";
+import { ArrowLeft, Smartphone, Apple, Download, Check, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -100,13 +100,17 @@ export default function DownloadPage() {
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
               <a
                 href={APK_URL}
+                onClick={() => toast.info("Download started — tap the notification when it finishes to install.", { duration: 6000 })}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
               </a>
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Free · No account required to browse
-              </p>
+              <div className="flex items-start gap-2 mt-4 p-3 rounded-xl bg-muted/50 border border-border">
+                <Bell className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  After downloading, <strong className="text-foreground">tap the notification</strong> that appears at the top of your screen to install instantly. No need to open your Downloads folder.
+                </p>
+              </div>
             </div>
           </div>
 
