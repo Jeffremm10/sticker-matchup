@@ -8,23 +8,23 @@ const corsHeaders = {
 };
 
 const TEST_USERS = [
-  { email: "alex@swap26.test",   username: "alex_toronto",   display_name: "Alex (Toronto)",      bio: "Hunting Group B players",  lat: 43.65,   lng: -79.38,  swap_count: 3,  avg_rating: 4.7, rating_count: 3  },
-  { email: "maya@swap26.test",   username: "maya_cdmx",      display_name: "Maya (CDMX)",         bio: "Dupes of Mexico, need USA", lat: 19.43,   lng: -99.13,  swap_count: 0,  avg_rating: 0,   rating_count: 0  },
-  { email: "jordan@swap26.test", username: "jordan_nyc",     display_name: "Jordan (NYC)",        bio: "Foil collector",            lat: 40.71,   lng: -74.0,   swap_count: 7,  avg_rating: 5.0, rating_count: 6  },
-  { email: "sam@swap26.test",    username: "sam_london",     display_name: "Sam (London)",        bio: "EU teams mostly",           lat: 51.50,   lng: -0.12,   swap_count: 2,  avg_rating: 4.0, rating_count: 2  },
-  { email: "ines@swap26.test",   username: "ines_madrid",    display_name: "Ines (Madrid)",       bio: "Need Argentina legends",    lat: 40.41,   lng: -3.70,   swap_count: 1,  avg_rating: 5.0, rating_count: 1  },
-  { email: "kenji@swap26.test",  username: "kenji_tokyo",    display_name: "Kenji (Tokyo)",       bio: "AFC + Museum stickers",     lat: 35.68,   lng: 139.69,  swap_count: 12, avg_rating: 4.9, rating_count: 11 },
+  { email: "alex@swapstrat.test",   username: "alex_toronto",   display_name: "Alex (Toronto)",      bio: "Hunting Group B players",  lat: 43.65,   lng: -79.38,  swap_count: 3,  avg_rating: 4.7, rating_count: 3  },
+  { email: "maya@swapstrat.test",   username: "maya_cdmx",      display_name: "Maya (CDMX)",         bio: "Dupes of Mexico, need USA", lat: 19.43,   lng: -99.13,  swap_count: 0,  avg_rating: 0,   rating_count: 0  },
+  { email: "jordan@swapstrat.test", username: "jordan_nyc",     display_name: "Jordan (NYC)",        bio: "Foil collector",            lat: 40.71,   lng: -74.0,   swap_count: 7,  avg_rating: 5.0, rating_count: 6  },
+  { email: "sam@swapstrat.test",    username: "sam_london",     display_name: "Sam (London)",        bio: "EU teams mostly",           lat: 51.50,   lng: -0.12,   swap_count: 2,  avg_rating: 4.0, rating_count: 2  },
+  { email: "ines@swapstrat.test",   username: "ines_madrid",    display_name: "Ines (Madrid)",       bio: "Need Argentina legends",    lat: 40.41,   lng: -3.70,   swap_count: 1,  avg_rating: 5.0, rating_count: 1  },
+  { email: "kenji@swapstrat.test",  username: "kenji_tokyo",    display_name: "Kenji (Tokyo)",       bio: "AFC + Museum stickers",     lat: 35.68,   lng: 139.69,  swap_count: 12, avg_rating: 4.9, rating_count: 11 },
   // Swiss test users
-  { email: "anna@swap26.test",   username: "anna_zurich",    display_name: "Anna (Zürich)",       bio: "Looking for duplicates",    lat: 47.3769, lng: 8.5472,  swap_count: 5,  avg_rating: 4.8, rating_count: 5  },
-  { email: "marco@swap26.test",  username: "marco_geneva",   display_name: "Marco (Geneva)",      bio: "EU trading partner",        lat: 46.2022, lng: 6.1432,  swap_count: 0,  avg_rating: 0,   rating_count: 0  },
-  { email: "lisa@swap26.test",   username: "lisa_bern",      display_name: "Lisa (Bern)",         bio: "Foil lover",                lat: 46.9479, lng: 7.4474,  swap_count: 3,  avg_rating: 4.3, rating_count: 3  },
-  { email: "thomas@swap26.test", username: "thomas_basel",   display_name: "Thomas (Basel)",      bio: "Complete my sets",          lat: 47.5596, lng: 7.5886,  swap_count: 8,  avg_rating: 4.6, rating_count: 7  },
-  { email: "maria@swap26.test",  username: "maria_lugano",   display_name: "Maria (Lugano)",      bio: "Need Swiss edition",        lat: 46.0051, lng: 8.9516,  swap_count: 1,  avg_rating: 5.0, rating_count: 1  },
-  { email: "stefan@swap26.test", username: "stefan_lucerne", display_name: "Stefan (Lucerne)",    bio: "Trading duplicates",        lat: 47.0502, lng: 8.3093,  swap_count: 4,  avg_rating: 4.5, rating_count: 4  },
-  { email: "sophia@swap26.test", username: "sophia_lausanne",display_name: "Sophia (Lausanne)",   bio: "Seeking rare finds",        lat: 46.5197, lng: 6.6323,  swap_count: 0,  avg_rating: 0,   rating_count: 0  },
-  { email: "daniel@swap26.test", username: "daniel_winti",   display_name: "Daniel (Winterthur)", bio: "Alpine collector",          lat: 47.5001, lng: 8.7275,  swap_count: 6,  avg_rating: 4.2, rating_count: 5  },
-  { email: "nina@swap26.test",   username: "nina_stgallen",  display_name: "Nina (St. Gallen)",   bio: "Team stickers only",        lat: 47.4235, lng: 9.3768,  swap_count: 2,  avg_rating: 4.5, rating_count: 2  },
-  { email: "boris@swap26.test",  username: "boris_neuchatel",display_name: "Boris (Neuchâtel)",   bio: "International trades",      lat: 46.9921, lng: 6.9282,  swap_count: 9,  avg_rating: 4.8, rating_count: 8  },
+  { email: "anna@swapstrat.test",   username: "anna_zurich",    display_name: "Anna (Zürich)",       bio: "Looking for duplicates",    lat: 47.3769, lng: 8.5472,  swap_count: 5,  avg_rating: 4.8, rating_count: 5  },
+  { email: "marco@swapstrat.test",  username: "marco_geneva",   display_name: "Marco (Geneva)",      bio: "EU trading partner",        lat: 46.2022, lng: 6.1432,  swap_count: 0,  avg_rating: 0,   rating_count: 0  },
+  { email: "lisa@swapstrat.test",   username: "lisa_bern",      display_name: "Lisa (Bern)",         bio: "Foil lover",                lat: 46.9479, lng: 7.4474,  swap_count: 3,  avg_rating: 4.3, rating_count: 3  },
+  { email: "thomas@swapstrat.test", username: "thomas_basel",   display_name: "Thomas (Basel)",      bio: "Complete my sets",          lat: 47.5596, lng: 7.5886,  swap_count: 8,  avg_rating: 4.6, rating_count: 7  },
+  { email: "maria@swapstrat.test",  username: "maria_lugano",   display_name: "Maria (Lugano)",      bio: "Need Swiss edition",        lat: 46.0051, lng: 8.9516,  swap_count: 1,  avg_rating: 5.0, rating_count: 1  },
+  { email: "stefan@swapstrat.test", username: "stefan_lucerne", display_name: "Stefan (Lucerne)",    bio: "Trading duplicates",        lat: 47.0502, lng: 8.3093,  swap_count: 4,  avg_rating: 4.5, rating_count: 4  },
+  { email: "sophia@swapstrat.test", username: "sophia_lausanne",display_name: "Sophia (Lausanne)",   bio: "Seeking rare finds",        lat: 46.5197, lng: 6.6323,  swap_count: 0,  avg_rating: 0,   rating_count: 0  },
+  { email: "daniel@swapstrat.test", username: "daniel_winti",   display_name: "Daniel (Winterthur)", bio: "Alpine collector",          lat: 47.5001, lng: 8.7275,  swap_count: 6,  avg_rating: 4.2, rating_count: 5  },
+  { email: "nina@swapstrat.test",   username: "nina_stgallen",  display_name: "Nina (St. Gallen)",   bio: "Team stickers only",        lat: 47.4235, lng: 9.3768,  swap_count: 2,  avg_rating: 4.5, rating_count: 2  },
+  { email: "boris@swapstrat.test",  username: "boris_neuchatel",display_name: "Boris (Neuchâtel)",   bio: "International trades",      lat: 46.9921, lng: 6.9282,  swap_count: 9,  avg_rating: 4.8, rating_count: 8  },
 ];
 const PASSWORD = "Test1234!";
 
