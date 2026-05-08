@@ -1,10 +1,51 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Smartphone, Apple, Download, Check, Bell } from "lucide-react";
+import { ArrowLeft, Smartphone, Apple, Download, Check, X, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/download/swapstrat.apk";
+
+function InstallGuide({ onClose }: { onClose: () => void }) {
+  const steps = [
+    { icon: "📥", title: "Download started", body: 'If Chrome asked about "harmful file", tap Download anyway.' },
+    { icon: "⚙️", title: "Allow installation", body: 'If Chrome says "not allowed to install unknown apps", tap Settings → enable Install unknown apps → go back and tap the file again.' },
+    { icon: "📂", title: "Open the file", body: "Pull down your notification bar and tap the SwapStrat download. Or open your Files / Downloads app and tap swapstrat.apk." },
+    { icon: "✅", title: "Tap Install", body: "Follow the Android install prompt and tap Install. Takes a few seconds." },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <span className="font-black text-base">Installing SwapStrat</span>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 space-y-5">
+          {steps.map((s, i) => (
+            <div key={i} className="flex gap-4 items-start">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-lg shrink-0">{s.icon}</div>
+              <div>
+                <p className="font-bold text-sm mb-0.5">{s.title}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-6 pb-6">
+          <button
+            onClick={onClose}
+            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function IosWaitlist() {
   const [email, setEmail] = useState("");
@@ -60,8 +101,11 @@ function IosWaitlist() {
 }
 
 export default function DownloadPage() {
+  const [showGuide, setShowGuide] = useState(false);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {showGuide && <InstallGuide onClose={() => setShowGuide(false)} />}
 
       {/* Nav */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
@@ -100,17 +144,14 @@ export default function DownloadPage() {
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
               <a
                 href={APK_URL}
-                onClick={() => toast.info("Download started — tap the notification when it finishes to install.", { duration: 6000 })}
+                onClick={() => setTimeout(() => setShowGuide(true), 800)}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
               </a>
-              <div className="flex items-start gap-2 mt-4 p-3 rounded-xl bg-muted/50 border border-border">
-                <Bell className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  After downloading, <strong className="text-foreground">tap the notification</strong> that appears at the top of your screen to install instantly. No need to open your Downloads folder.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Free · No account required to browse
+              </p>
             </div>
           </div>
 
