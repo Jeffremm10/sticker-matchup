@@ -41,14 +41,14 @@ export default function Landing() {
       <section className="max-w-6xl mx-auto px-6 pt-36 pb-20 grid md:grid-cols-2 gap-12 items-center">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold mb-6">
-            <Star className="w-3 h-3" /> FIFA World Cup 2026
+            <Star className="w-3 h-3" /> World Cup 2026
           </div>
           <h1 className="text-5xl md:text-6xl font-black leading-tight mb-6">
             Trade Smarter.<br />
             <span className="text-primary">Complete the Album.</span>
           </h1>
           <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-            Match with nearby collectors, swap duplicates, and finish your FIFA World Cup 2026 sticker album — faster than ever.
+            Match with nearby collectors, swap duplicates, and finish your 2026 World Cup Album — faster than ever.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link

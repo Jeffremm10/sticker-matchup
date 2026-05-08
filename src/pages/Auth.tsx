@@ -153,7 +153,7 @@ export default function Auth() {
             Your collection<br />is waiting.
           </h1>
           <p className="text-muted-foreground text-base mb-10 leading-relaxed">
-            Match with nearby collectors and complete the FIFA World Cup 2026 album — one swap at a time.
+            Match with nearby collectors and complete the 2026 World Cup Album — one swap at a time.
           </p>
 
           <div className="space-y-4 mb-10">
@@ -208,14 +208,16 @@ export default function Auth() {
             By continuing you agree to our Terms & Privacy Policy.
           </p>
 
-          <div className="mt-6 pt-5 border-t border-border text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have the app?{" "}
-              <Link to="/download" className="text-primary font-semibold hover:underline">
-                Download it <ArrowRight className="w-3 h-3 inline" />
-              </Link>
-            </p>
-          </div>
+          {window.location.hostname !== "localhost" && (
+            <div className="mt-6 pt-5 border-t border-border text-center">
+              <p className="text-sm text-muted-foreground">
+                Don't have the app?{" "}
+                <Link to="/download" className="text-primary font-semibold hover:underline">
+                  Download it <ArrowRight className="w-3 h-3 inline" />
+                </Link>
+              </p>
+            </div>
+          )}
 
           {/* Dev test users */}
           {import.meta.env.DEV && (

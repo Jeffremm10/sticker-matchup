@@ -55,7 +55,7 @@ export default function Album() {
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-black">The 26 Album</h1>
+            <h1 className="text-lg font-black">The 2026 World Cup Album</h1>
             <p className="text-xs text-muted-foreground">
               Hi {profile?.username ?? "collector"} · {stats.owned}/{stats.total} owned · {stats.dup} dup
             </p>

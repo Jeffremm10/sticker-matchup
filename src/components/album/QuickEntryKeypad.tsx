@@ -29,10 +29,13 @@ export const QuickEntryKeypad = ({
   // Max slot for selected nation
   const maxSlot = nationStickers.length;
 
-  // Resolve sticker from current val
+  // Resolve sticker from current val — try padded and unpadded formats
   const slotNum = parseInt(val || "0", 10);
-  const paddedCode = nation ? `${nation} ${String(slotNum).padStart(2, "0")}` : "";
-  const found = nation && slotNum > 0 ? stickers.find((s) => s.code === paddedCode) : undefined;
+  const found = nation && slotNum > 0 ? (
+    stickers.find((s) => s.code === `${nation} ${String(slotNum).padStart(2, "0")}`) ??
+    stickers.find((s) => s.code === `${nation} ${slotNum}`) ??
+    stickers.find((s) => s.code === `${nation}${slotNum}`)
+  ) : undefined;
   const cur = found ? inventory.get(found.id) : undefined;
 
   const press = (d: string) => {

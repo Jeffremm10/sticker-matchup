@@ -62,7 +62,10 @@ export function useInventory() {
       qc.setQueryData(key, next);
       return { prev };
     },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(key, ctx.prev); },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+      import("sonner").then(({ toast }) => toast.error("Could not save — check your connection."));
+    },
   });
 
   const cycle = (sticker_id: number) => {
