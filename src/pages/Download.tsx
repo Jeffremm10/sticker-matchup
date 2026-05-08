@@ -145,20 +145,28 @@ export default function DownloadPage() {
               <h2 className="text-2xl font-black mb-1">Android</h2>
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
 
-              {/* Direct link — most reliable on mobile Chrome */}
               <a
                 href={APK_URL}
-                onClick={() => setShowGuide(true)}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
               </a>
-              <button
-                onClick={() => setShowGuide(true)}
-                className="w-full mt-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-              >
-                How to install
-              </button>
+
+              {/* Always-visible install steps */}
+              <div className="mt-5 space-y-3">
+                {[
+                  'Tap Download APK → if warned "File might be harmful", tap Download anyway',
+                  'If asked about unknown apps → tap Settings → enable for Chrome → go back',
+                  "Open Files app → Downloads → tap swapstrat.apk → Install",
+                ].map((step, i) => (
+                  <div key={i} className="flex gap-3 items-start text-xs text-muted-foreground">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-[10px]">
+                      {i + 1}
+                    </span>
+                    <span className="leading-relaxed">{step}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
