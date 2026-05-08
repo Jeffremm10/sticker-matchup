@@ -97,10 +97,13 @@ export default function DownloadPage() {
 
         {/* Install instructions */}
         <div className="bg-card border border-border rounded-2xl p-8">
-          <h3 className="font-black text-lg mb-6">How to install the Android APK</h3>
+          <h3 className="font-black text-lg mb-2">How to install the Android APK</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Android will warn that the file "might be harmful" — this is a standard system message shown for every APK downloaded outside the Play Store. Tap <strong className="text-foreground">Download anyway</strong> to continue.
+          </p>
           <ol className="space-y-4">
             {[
-              "Tap Download APK above to save the file to your device.",
+              'Tap Download APK. When Android warns "File might be harmful", tap Download anyway — this is shown for all APKs outside the Play Store.',
               'Open your Downloads folder and tap the file. If prompted, allow "Install unknown apps" for your browser.',
               "Follow the installation prompt and tap Install.",
               "Open SwapStrat and sign in with Google.",
