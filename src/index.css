@@ -8,65 +8,58 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Swap26 dark sports palette */
-    --background: 222 25% 7%;
+    /* SwapStrat premium dark palette */
+    --background: 0 0% 4%;
     --foreground: 0 0% 98%;
 
-    --card: 222 22% 11%;
+    --card: 0 0% 12%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 222 22% 11%;
+    --popover: 0 0% 9%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 142 76% 56%;            /* grass green #4ADE80 */
-    --primary-foreground: 222 47% 8%;
-    --primary-glow: 142 76% 65%;
+    --primary: 82 100% 59%;            /* lime #ADFF2F */
+    --primary-foreground: 0 0% 4%;
+    --primary-glow: 82 100% 65%;
 
-    --secondary: 222 22% 16%;
+    --secondary: 0 0% 9%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 18% 18%;
-    --muted-foreground: 220 10% 65%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
     --accent: 48 96% 53%;              /* gold #FACC15 */
-    --accent-foreground: 222 47% 8%;
+    --accent-foreground: 0 0% 4%;
 
-    --owned: 142 76% 56%;
+    --owned: 82 100% 59%;
     --duplicate: 48 96% 53%;
     --need: 0 78% 60%;
-    --get: 142 76% 56%;
+    --get: 82 100% 59%;
     --give: 48 96% 53%;
 
     --destructive: 0 78% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 222 18% 20%;
-    --input: 222 18% 18%;
-    --ring: 142 76% 56%;
+    --border: 0 0% 20%;
+    --input: 0 0% 12%;
+    --ring: 82 100% 59%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
-    --gradient-pitch: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 56%));
-    --gradient-stadium: linear-gradient(160deg, hsl(222 22% 11%), hsl(222 25% 7%));
-    --shadow-card: 0 12px 32px -12px hsl(0 0% 0% / 0.6);
-    --glow-owned: 0 0 20px hsl(142 76% 56% / 0.55);
-    --glow-duplicate: 0 0 20px hsl(48 96% 53% / 0.55);
+    --gradient-pitch: linear-gradient(135deg, hsl(82 100% 35%), hsl(82 100% 59%));
+    --gradient-stadium: linear-gradient(160deg, hsl(0 0% 12%), hsl(0 0% 4%));
+    --shadow-card: 0 12px 32px -12px hsl(0 0% 0% / 0.8);
+    --glow-owned: 0 0 24px hsl(82 100% 59% / 0.4);
+    --glow-duplicate: 0 0 20px hsl(48 96% 53% / 0.5);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 82 100% 59%;
+    --sidebar-primary-foreground: 0 0% 4%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 82 100% 59%;
   }
 
   .dark {

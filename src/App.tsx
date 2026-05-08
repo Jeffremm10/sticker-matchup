@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import Auth from "./pages/Auth";
 import Album from "./pages/Album";
+import Landing from "./pages/Landing";
+import Download from "./pages/Download";
 import OnboardingUsername from "./pages/OnboardingUsername";
 import OnboardingLocation from "./pages/OnboardingLocation";
 import Matches from "./pages/Matches";
@@ -123,10 +125,11 @@ const App = () => (
           <PaywallProvider>
             <MessageNotifications />
             <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/download" element={<Download />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding/username" element={<Protected requireUsername={false}><OnboardingUsername /></Protected>} />
             <Route path="/onboarding/location" element={<Protected requireUsername={false}><OnboardingLocation /></Protected>} />
-            <Route path="/" element={<Protected><Album /></Protected>} />
             <Route path="/album" element={<Protected><Album /></Protected>} />
             <Route path="/swipe" element={<Protected><Swipe /></Protected>} />
 <Route path="/matches" element={<Protected><Matches /></Protected>} />
