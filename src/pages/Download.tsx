@@ -6,6 +6,45 @@ import { toast } from "sonner";
 
 const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/download/swapstrat.apk";
 
+async function downloadWithNotification() {
+  // Trigger the download
+  const a = document.createElement("a");
+  a.href = APK_URL;
+  a.download = "swapstrat.apk";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  if (!("Notification" in window)) return;
+
+  const permission = Notification.permission === "granted"
+    ? "granted"
+    : await Notification.requestPermission();
+
+  if (permission !== "granted") return;
+
+  // Fire immediately so they see it in the notification bar
+  new Notification("SwapStrat is downloading…", {
+    body: "When the download finishes, tap this notification to install.",
+    icon: "/favicon.ico",
+    tag: "swapstrat-download",
+  });
+
+  // Fire again after ~8s when download is likely done
+  setTimeout(() => {
+    const n = new Notification("SwapStrat — ready to install", {
+      body: 'Open Files → Downloads → tap swapstrat.apk → Install',
+      icon: "/favicon.ico",
+      tag: "swapstrat-install",
+      requireInteraction: true,
+    });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  }, 8000);
+}
+
 function InstallGuide({ onClose }: { onClose: () => void }) {
   const steps = [
     { n: "1", title: 'Tap "Download anyway"', body: 'Chrome will warn the file might be harmful — this is shown for every APK outside the Play Store. Tap Download anyway.' },
@@ -145,25 +184,29 @@ export default function DownloadPage() {
               <h2 className="text-2xl font-black mb-1">Android</h2>
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
 
-              <a
-                href={APK_URL}
+              <button
+                onClick={downloadWithNotification}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
-              </a>
+              </button>
 
               {/* Always-visible install steps */}
               <div className="mt-5 space-y-3">
                 {[
-                  'Tap Download APK → if warned "File might be harmful", tap Download anyway',
-                  'If asked about unknown apps → tap Settings → enable for Chrome → go back',
-                  "Open Files app → Downloads → tap swapstrat.apk → Install",
+                  { title: 'Tap "Download anyway"', body: 'Chrome warns every APK is harmful. Tap Download anyway.' },
+                  { title: 'Enable unknown apps for Chrome', body: 'Chrome shows "not allowed to install". Tap Settings → flip the switch to Allow → tap the back arrow to return to Chrome.' },
+                  { title: 'Open Files → Downloads → swapstrat.apk', body: 'Open your Files or My Files app. Tap Downloads. Tap swapstrat.apk. The Android install screen appears.' },
+                  { title: 'Tap Install', body: 'Tap Install on the Android prompt. Done.' },
                 ].map((step, i) => (
-                  <div key={i} className="flex gap-3 items-start text-xs text-muted-foreground">
-                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-[10px]">
+                  <div key={i} className="flex gap-3 items-start">
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-black flex items-center justify-center shrink-0 text-[10px] mt-0.5">
                       {i + 1}
                     </span>
-                    <span className="leading-relaxed">{step}</span>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">{step.title}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{step.body}</p>
+                    </div>
                   </div>
                 ))}
               </div>
