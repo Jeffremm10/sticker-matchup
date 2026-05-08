@@ -46,14 +46,16 @@ function DesktopSidebar() {
         ))}
       </nav>
 
-      {/* Download link */}
-      <Link
-        to="/download"
-        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all mb-2"
-      >
-        <Download className="w-4 h-4 shrink-0" />
-        Get the app
-      </Link>
+      {/* Download link — web only */}
+      {window.location.hostname !== "localhost" && (
+        <Link
+          to="/download"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all mb-2"
+        >
+          <Download className="w-4 h-4 shrink-0" />
+          Get the app
+        </Link>
+      )}
 
       {/* Profile footer */}
       {profile && (

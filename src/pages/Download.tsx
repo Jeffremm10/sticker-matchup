@@ -84,6 +84,10 @@ function IosWaitlist() {
 export default function DownloadPage() {
   const [notifGranted, setNotifGranted] = useState(false);
 
+  useEffect(() => {
+    if (window.location.hostname === "localhost") window.location.replace("/auth");
+  }, []);
+
   const handleDownload = () => {
     if (notifGranted) {
       setTimeout(() => {

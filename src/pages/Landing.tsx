@@ -8,6 +8,10 @@ export default function Landing() {
   const nav = useNavigate();
 
   useEffect(() => {
+    if (window.location.hostname === "localhost") {
+      nav("/auth", { replace: true });
+      return;
+    }
     if (!loading && user) nav("/album", { replace: true });
   }, [user, loading, nav]);
 
