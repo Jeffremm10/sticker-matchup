@@ -148,12 +148,13 @@ export default function DownloadPage() {
 
               {/* Install steps */}
               <div className="space-y-3 pt-2 border-t border-border">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">After tapping download</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">How to install</p>
                 {[
-                  { n: "1", t: 'Tap "Download anyway"', b: "Your browser warns every APK — this is normal. Tap Download anyway." },
-                  { n: "2", t: "Tap Open in the download bar", b: "A bar appears at the bottom of your browser when done. Tap Open." },
-                  { n: "3", t: 'If blocked: Settings → Allow → Back', b: 'Tap Settings → enable "Allow from this source" → press Back on your phone → tap Open again.' },
-                  { n: "4", t: "Tap Install", b: "The Android install screen appears. Tap Install." },
+                  { n: "1", t: "Enable notifications above", b: "Tap the button above and allow — we'll notify you the moment your download is ready to install." },
+                  { n: "2", t: 'Tap "Download anyway"', b: "Your browser shows a safety warning for every APK downloaded outside the Play Store. This is standard — tap Download anyway." },
+                  { n: "3", t: "Allow your browser to install apps", b: 'If you see "not allowed to install unknown apps", tap Settings → enable "Allow from this source" → press Back.' },
+                  { n: "4", t: "Google Play Protect scans the app", b: "Android automatically scans SwapStrat before installing. This is normal and takes a few seconds — it will pass." },
+                  { n: "5", t: "Tap Install", b: "The install screen appears. Tap Install and you're done." },
                 ].map((s) => (
                   <div key={s.n} className="flex gap-3 items-start">
                     <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
@@ -163,6 +164,14 @@ export default function DownloadPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Trust badge */}
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border border-border">
+                <span className="text-base mt-0.5">🛡</span>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <strong className="text-foreground">Safe to install.</strong> Google Play Protect scans every APK before it installs. SwapStrat contains no malware, no trackers, and no background processes.
+                </p>
               </div>
             </div>
           </div>
