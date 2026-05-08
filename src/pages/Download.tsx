@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Smartphone, Apple, Download, Check, X, ArrowDown } from "lucide-react";
+import { ArrowLeft, Smartphone, Apple, Download, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -8,25 +8,33 @@ const APK_URL = "https://github.com/Jeffremm10/sticker-matchup/releases/latest/d
 
 function InstallGuide({ onClose }: { onClose: () => void }) {
   const steps = [
-    { icon: "📥", title: "Download started", body: 'If Chrome asked about "harmful file", tap Download anyway.' },
-    { icon: "⚙️", title: "Allow installation", body: 'If Chrome says "not allowed to install unknown apps", tap Settings → enable Install unknown apps → go back and tap the file again.' },
-    { icon: "📂", title: "Open the file", body: "A download bar appears at the bottom of Chrome when it finishes — tap Open. Or open your Files / Downloads app and tap swapstrat.apk." },
-    { icon: "✅", title: "Tap Install", body: "Follow the Android install prompt and tap Install. Takes a few seconds." },
+    { n: "1", title: 'Tap "Download anyway"', body: 'Chrome will warn the file might be harmful — this is shown for every APK outside the Play Store. Tap Download anyway.' },
+    { n: "2", title: "Allow Chrome to install apps", body: 'If Chrome says your phone isn\'t allowed to install unknown apps, tap Settings → turn on "Install unknown apps" for Chrome → go back.' },
+    { n: "3", title: "Open the downloaded file", body: "Look for a download bar at the bottom of Chrome — tap Open. Or open your Files app → Downloads → tap swapstrat.apk." },
+    { n: "4", title: "Tap Install", body: "Android will show an install screen. Tap Install and wait a few seconds. Done." },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl overflow-hidden">
+    <div
+      className="fixed inset-0 z-[200] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-card border border-border rounded-t-2xl md:rounded-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <span className="font-black text-base">Installing SwapStrat</span>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-5 h-5" />
+          <span className="font-black text-base">How to install</span>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-6 space-y-5">
-          {steps.map((s, i) => (
-            <div key={i} className="flex gap-4 items-start">
-              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-lg shrink-0">{s.icon}</div>
+        <div className="p-6 space-y-4">
+          {steps.map((s) => (
+            <div key={s.n} className="flex gap-3 items-start">
+              <span className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
+                {s.n}
+              </span>
               <div>
                 <p className="font-bold text-sm mb-0.5">{s.title}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
@@ -37,7 +45,7 @@ function InstallGuide({ onClose }: { onClose: () => void }) {
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+            className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
           >
             Got it
           </button>
@@ -60,11 +68,7 @@ function IosWaitlist() {
       .from("ios_waitlist")
       .insert({ email: email.trim().toLowerCase() });
     setBusy(false);
-    if (error?.code === "23505") {
-      toast.info("You're already on the list.");
-      setDone(true);
-      return;
-    }
+    if (error?.code === "23505") { toast.info("You're already on the list."); setDone(true); return; }
     if (error) { toast.error("Something went wrong — try again."); return; }
     setDone(true);
     toast.success("You're on the list!");
@@ -92,7 +96,7 @@ function IosWaitlist() {
       <button
         type="submit"
         disabled={busy}
-        className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+        className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50"
       >
         {busy ? "Joining…" : "Join iOS waitlist"}
       </button>
@@ -122,15 +126,13 @@ export default function DownloadPage() {
 
       <main className="max-w-4xl mx-auto px-6 pt-32 pb-20">
 
-        {/* Hero */}
         <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-black mb-4">Get the App</h1>
           <p className="text-muted-foreground text-lg max-w-md mx-auto">
-            Trade stickers on the go. Scan, match, and swap — right from your pocket.
+            Trade stickers on the go. Match, swap, complete the album.
           </p>
         </div>
 
-        {/* Platform cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-16">
 
           {/* Android */}
@@ -142,23 +144,21 @@ export default function DownloadPage() {
               </div>
               <h2 className="text-2xl font-black mb-1">Android</h2>
               <p className="text-muted-foreground text-sm mb-6">Available now · Android 8.0+</p>
-              <button
-                onClick={() => {
-                  const a = document.createElement("a");
-                  a.href = APK_URL;
-                  a.download = "swapstrat.apk";
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  setShowGuide(true);
-                }}
+
+              {/* Direct link — most reliable on mobile Chrome */}
+              <a
+                href={APK_URL}
+                onClick={() => setShowGuide(true)}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity"
               >
                 <Download className="w-5 h-5" /> Download APK
+              </a>
+              <button
+                onClick={() => setShowGuide(true)}
+                className="w-full mt-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                How to install
               </button>
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Free · No account required to browse
-              </p>
             </div>
           </div>
 
@@ -175,33 +175,8 @@ export default function DownloadPage() {
             </div>
           </div>
         </div>
-
-        {/* Install instructions */}
-        <div className="bg-card border border-border rounded-2xl p-8">
-          <h3 className="font-black text-lg mb-2">How to install the Android APK</h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            Android will warn that the file "might be harmful" — this is a standard system message shown for every APK downloaded outside the Play Store. Tap <strong className="text-foreground">Download anyway</strong> to continue.
-          </p>
-          <ol className="space-y-4">
-            {[
-              'Tap Download APK. When Chrome warns "File might be harmful", tap Download anyway.',
-              'If Chrome says your phone isn\'t allowed to install unknown apps, tap Settings and enable "Install unknown apps" for Chrome, then go back.',
-              "Open your Downloads folder and tap swapstrat.apk.",
-              "Follow the installation prompt and tap Install.",
-              "Open SwapStrat and sign in with Google.",
-            ].map((step, i) => (
-              <li key={i} className="flex gap-4 items-start">
-                <span className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
-                  {i + 1}
-                </span>
-                <p className="text-sm text-muted-foreground leading-relaxed">{step}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-border">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <span className="font-black text-primary">SwapStrat</span>
