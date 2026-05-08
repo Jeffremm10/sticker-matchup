@@ -1,15 +1,15 @@
 import { ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import { BookOpen, Flame, MessageCircle, User, Crown } from "lucide-react";
+import { NavLink, useNavigate, Link } from "react-router-dom";
+import { BookOpen, Flame, MessageCircle, User, Crown, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BottomNav } from "./BottomNav";
 import { useProfile } from "@/hooks/useProfile";
 
 const NAV_ITEMS = [
-  { to: "/album",   label: "Album",   icon: BookOpen },
+  { to: "/album",   label: "Album",    icon: BookOpen },
   { to: "/swipe",   label: "Discover", icon: Flame },
-  { to: "/matches", label: "Matches", icon: MessageCircle },
-  { to: "/profile", label: "Profile", icon: User },
+  { to: "/matches", label: "Matches",  icon: MessageCircle },
+  { to: "/profile", label: "Profile",  icon: User },
 ];
 
 function DesktopSidebar() {
@@ -45,6 +45,15 @@ function DesktopSidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Download link */}
+      <Link
+        to="/download"
+        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all mb-2"
+      >
+        <Download className="w-4 h-4 shrink-0" />
+        Get the app
+      </Link>
 
       {/* Profile footer */}
       {profile && (
