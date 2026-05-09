@@ -21,15 +21,8 @@ export default function OnboardingLocation() {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         if (!user) return;
-        const { error } = await supabase.from("profiles").update({
-          lat,
-          lng,
-        }).eq("id", user.id);
-        if (error) {
-          toast.error("Failed to save location");
-          setStatus("denied");
-          return;
-        }
+        const { error } = await supabase.from("profiles").update({ lat, lng }).eq("id", user.id);
+        if (error) { toast.error("Failed to save location"); setStatus("denied"); return; }
         await qc.invalidateQueries({ queryKey: ["profile", user.id] });
         setStatus("success");
         setTimeout(() => nav("/album", { replace: true }), 500);
@@ -37,7 +30,8 @@ export default function OnboardingLocation() {
       () => {
         setStatus("denied");
         toast.error("Location permission denied");
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
@@ -51,7 +45,9 @@ export default function OnboardingLocation() {
             <MapPin className="text-primary-foreground w-6 h-6" />
           </div>
           <h1 className="text-2xl font-black">Share Your Location</h1>
-          <p className="text-xs text-muted-foreground text-center">Help other collectors find you and discover trading partners nearby.</p>
+          <p className="text-xs text-muted-foreground text-center">
+            Help other collectors find you and discover trading partners nearby.
+          </p>
         </div>
 
         <div className="space-y-3">
@@ -61,17 +57,17 @@ export default function OnboardingLocation() {
             onClick={requestLocation}
           >
             {status === "requesting" && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {status === "success" && <Check className="w-4 h-4 mr-2" />}
-            {status === "denied" && <X className="w-4 h-4 mr-2" />}
-            {status === "idle" && "Allow Location"}
-            {status === "requesting" && "Requesting..."}
-            {status === "success" && "Location Saved!"}
-            {status === "denied" && "Try Again"}
+            {status === "success"    && <Check className="w-4 h-4 mr-2" />}
+            {status === "denied"     && <X className="w-4 h-4 mr-2" />}
+            {status === "idle"       ? "Allow Location" :
+             status === "requesting" ? "Requesting..." :
+             status === "success"    ? "Location Saved!" : "Try Again"}
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
-            {status === "denied" && "Your browser blocked location access. Check permissions in settings."}
-            {status !== "denied" && "We'll use this to show you nearby collectors and matches."}
+            {status === "denied"
+              ? "Tap Settings → Apps → SwapStrat → Permissions → Location → Allow."
+              : "Used to show nearby collectors. Never shared with third parties."}
           </p>
 
           <Button variant="outline" className="w-full" onClick={skip} disabled={status === "requesting"}>
