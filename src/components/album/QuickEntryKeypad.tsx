@@ -63,7 +63,7 @@ export const QuickEntryKeypad = ({
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { console.log("Quick entry stickers:", stickers.length, stickers[0]); setOpen(true); }}
         className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 flex items-center justify-center active:scale-95 transition-transform">
         <Keyboard className="w-6 h-6" />
       </button>
@@ -103,37 +103,29 @@ export const QuickEntryKeypad = ({
               {!nation && (
                 <div className="max-h-72 overflow-y-auto space-y-1">
                   <div className="grid grid-cols-4 gap-1.5">
-                    {regularNations.map((n) => {
-                      const count = stickers.filter(s => s.nation === n.code).length;
-                      if (count === 0) return null;
-                      return (
-                        <button
-                          key={n.code}
-                          onClick={() => setNation(n.code)}
-                          className="flex flex-col items-center justify-center gap-0.5 rounded-xl bg-secondary p-2 active:bg-muted text-center">
-                          <span className="text-2xl leading-none">{n.flag}</span>
-                          <span className="text-[10px] font-bold leading-none mt-1">{n.code}</span>
-                        </button>
-                      );
-                    })}
+                    {regularNations.map((n) => (
+                      <button
+                        key={n.code}
+                        onClick={() => setNation(n.code)}
+                        className="flex flex-col items-center justify-center gap-0.5 rounded-xl bg-secondary p-2 active:bg-muted text-center">
+                        <span className="text-2xl leading-none">{n.flag}</span>
+                        <span className="text-[10px] font-bold leading-none mt-1">{n.code}</span>
+                      </button>
+                    ))}
                   </div>
                   {specialNations.some(n => stickers.some(s => s.nation === n.code)) && (
                     <>
                       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide pt-1 px-1">Special</div>
                       <div className="grid grid-cols-4 gap-1.5">
-                        {specialNations.map((n) => {
-                          const count = stickers.filter(s => s.nation === n.code).length;
-                          if (count === 0) return null;
-                          return (
-                            <button
-                              key={n.code}
-                              onClick={() => setNation(n.code)}
-                              className="flex flex-col items-center justify-center gap-0.5 rounded-xl bg-secondary p-2 active:bg-muted text-center">
-                              <span className="text-2xl leading-none">{n.flag}</span>
-                              <span className="text-[10px] font-bold leading-none mt-1">{n.code}</span>
-                            </button>
-                          );
-                        })}
+                        {specialNations.map((n) => (
+                          <button
+                            key={n.code}
+                            onClick={() => setNation(n.code)}
+                            className="flex flex-col items-center justify-center gap-0.5 rounded-xl bg-secondary p-2 active:bg-muted text-center">
+                            <span className="text-2xl leading-none">{n.flag}</span>
+                            <span className="text-[10px] font-bold leading-none mt-1">{n.code}</span>
+                          </button>
+                        ))}
                       </div>
                     </>
                   )}
