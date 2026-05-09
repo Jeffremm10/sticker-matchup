@@ -98,18 +98,6 @@ export default function Profile() {
         <Button variant="outline" className="w-full" onClick={geolocate}>
           <MapPin className="w-4 h-4 mr-2"/>Update my location
         </Button>
-        {import.meta.env.DEV && (
-          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-accent"/>
-              <div>
-                <div className="font-bold text-sm">Pro mode (dev)</div>
-                <div className="text-xs text-muted-foreground">Unlimited swipes, unblurred lists</div>
-              </div>
-            </div>
-            <Switch checked={pro} onCheckedChange={setPro}/>
-          </div>
-        )}
         <Button className="w-full" onClick={save}>Save</Button>
 
         {!profile?.is_pro && (
