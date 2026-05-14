@@ -70,6 +70,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ios_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           created_at: string
@@ -175,6 +193,39 @@ export type Database = {
             columns: ["match_id"]
             isOneToOne: false
             referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nudge_history: {
+        Row: {
+          created_at: string
+          nudged_id: string
+          nudger_id: string
+        }
+        Insert: {
+          created_at?: string
+          nudged_id: string
+          nudger_id: string
+        }
+        Update: {
+          created_at?: string
+          nudged_id?: string
+          nudger_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nudge_history_nudged_id_fkey"
+            columns: ["nudged_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nudge_history_nudger_id_fkey"
+            columns: ["nudger_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -651,9 +702,16 @@ export type Database = {
       consume_nudge: {
         Args: never
         Returns: {
+          bio: string
           display_name: string
           distance_km: number
+          give_count: number
+          give_ids: number[]
+          is_pro: boolean
+          lat: number
+          lng: number
           receive_count: number
+          receive_ids: number[]
           remaining: number
           user_id: string
         }[]
